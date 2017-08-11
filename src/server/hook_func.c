@@ -143,6 +143,10 @@
 #include "cmds.h"
 #include "server.h"
 
+/* server periodic hook */
+#include "placementsets.h"
+pbs_list_head vnode_attr_list;
+/*****************************/
 
 /* External functions */
 extern void disable_svr_prov();
@@ -245,6 +249,17 @@ typedef struct {
 	char *hookname;
 	int  action;
 } hook_mcast_info_t;
+
+/* server periodic hook */
+struct hook_vnl_action {
+	pbs_list_link  hva_link;
+	unsigned long  hva_actid;		 /* action id number */
+	char           hva_euser[PBS_MAXUSER+1]; /* effective hook user */
+	vnl_t         *hva_vnl;			 /* vnl updates */
+};
+
+extern int need_todo;
+/*****************/
 
 /* global array of mcast information structs */
 hook_mcast_info_t *g_hook_mcast_array = NULL;
@@ -3920,6 +3935,12 @@ int server_process_hooks(int rq_type, char *rq_user, char *rq_host, hook *phook,
 	char			*p;
 	static size_t		suffix_sz;
 
+	/* server periodic hook */
+	hook_output_param_t req_params_out;
+	pid_t mypid = getpid();
+	pbs_list_head event_vnode;
+	/***************/
+
 	if (suffix_sz == 0)
 		suffix_sz = strlen(HOOK_SCRIPT_SUFFIX);
 
@@ -3928,8 +3949,13 @@ int server_process_hooks(int rq_type, char *rq_user, char *rq_host, hook *phook,
 	pbs_python_set_hook_debug_output_file("");
 
 	if (phook->debug) {
-		snprintf(hook_inputfile, MAXPATHLEN, FMT_HOOK_INFILE, path_hooks_workdir, 
-			hook_event_as_string(hook_event), phook->hook_name, (int)time(0));
+		if (rq_type == PBS_BATCH_HookPeriodic) {
+			snprintf(hook_inputfile, MAXPATHLEN, FMT_HOOK_INFILE, path_hooks_workdir,
+				hook_event_as_string(hook_event), phook->hook_name, mypid);
+		} else {
+			snprintf(hook_inputfile, MAXPATHLEN, FMT_HOOK_INFILE, path_hooks_workdir,
+				hook_event_as_string(hook_event), phook->hook_name, (int)time(0));
+		}
 
 		fp_debug = fopen(hook_inputfile, "w");
 		if (fp_debug == NULL) {
@@ -3943,10 +3969,16 @@ int server_process_hooks(int rq_type, char *rq_user, char *rq_host, hook *phook,
 			pbs_python_set_hook_debug_input_fp(fp_debug);
 			pbs_python_set_hook_debug_input_file(hook_inputfile);
 		}
+		if (rq_type == PBS_BATCH_HookPeriodic) {
+			snprintf(hook_datafile, MAXPATHLEN, FMT_HOOK_DATAFILE,
+				path_hooks_workdir, hook_event_as_string(hook_event),
+				phook->hook_name, mypid);/*(int)time(0)*/
+		} else {
+			snprintf(hook_datafile, MAXPATHLEN, FMT_HOOK_DATAFILE,
+				path_hooks_workdir, hook_event_as_string(hook_event),
+				phook->hook_name, (int)time(0));
+		}
 
-		snprintf(hook_datafile, MAXPATHLEN, FMT_HOOK_DATAFILE,
-			path_hooks_workdir, hook_event_as_string(hook_event),
-			phook->hook_name, (int)time(0));
 
 		fp2_debug = fopen(hook_datafile, "w");
 		if (fp2_debug == NULL) {
@@ -4212,9 +4244,16 @@ int server_process_hooks(int rq_type, char *rq_user, char *rq_host, hook *phook,
 	/* set hook_debug_output_file for recreate_request(), set_* calls */
 	/* to dump any hook results in the file. */
 	if (phook->debug) {
-		snprintf(hook_outfile, MAXPATHLEN, FMT_HOOK_OUTFILE,
-		path_hooks_workdir, hook_event_as_string(hook_event),
-		phook->hook_name, (int)time(0));
+		if (rq_type == PBS_BATCH_HookPeriodic) {
+			snprintf(hook_outfile, MAXPATHLEN, FMT_HOOK_OUTFILE,
+					path_hooks_workdir, hook_event_as_string(hook_event),
+					phook->hook_name, mypid);
+		} else {
+			snprintf(hook_outfile, MAXPATHLEN, FMT_HOOK_OUTFILE,
+					path_hooks_workdir, hook_event_as_string(hook_event),
+					phook->hook_name, (int)time(0));
+		}
+
 
 		pbs_python_set_hook_debug_output_file(hook_outfile);
 		fp_debug_out = fopen(hook_outfile, "w");
@@ -4223,14 +4262,19 @@ int server_process_hooks(int rq_type, char *rq_user, char *rq_host, hook *phook,
 			if (fp_debug_out_save != NULL) {
 				fclose(fp_debug_out_save);
 			}
-			pbs_python_set_hook_debug_output_fp(fp_debug_out);
+			if(rq_type != PBS_BATCH_HookPeriodic) {
+				pbs_python_set_hook_debug_output_fp(fp_debug_out);
+			}
 		}
 	} else {
 		fp_debug_out_save = pbs_python_get_hook_debug_output_fp();
 		if (fp_debug_out_save != NULL) {
 			fclose(fp_debug_out_save);
 		}
-		pbs_python_set_hook_debug_output_fp(NULL);
+		if(rq_type != PBS_BATCH_HookPeriodic) {
+			pbs_python_set_hook_debug_output_fp(NULL);
+		}
+		//pbs_python_set_hook_debug_output_fp(NULL);
 		/* NOTE: don't call */
 		/* pbs_python_set_hook_debug_output_file() as */
 		/* we still need a file to dump any remaining */
@@ -4471,9 +4515,21 @@ int server_process_hooks(int rq_type, char *rq_user, char *rq_host, hook *phook,
 				return (0);
 			}
 		}
+		if(rq_type == PBS_BATCH_HookPeriodic) {
+			fprintf(fp_debug_out, "%s=True\n", EVENT_ACCEPT_OBJECT);
+			fprintf(fp_debug_out, "%s=False\n", EVENT_REJECT_OBJECT);
+			hook_output_param_init(&req_params_out);
+			CLEAR_HEAD(event_vnode);
+			req_params_out.vns_list = (pbs_list_head *)&event_vnode;
+			pbs_python_event_to_request(hook_event, &req_params_out);
+			_fprint_svrattrl_list(fp_debug_out, EVENT_VNODELIST_OBJECT, &event_vnode);
+			free_attrlist(&event_vnode);
+			CLEAR_HEAD(event_vnode);
+			fclose(fp_debug_out);
+			pbs_python_set_hook_debug_output_fp(NULL);
+			return (1);
+		}
 	}
-
-
 	write_hook_accept_debug_output_and_close();
 	return (1);
 }
@@ -6733,7 +6789,196 @@ void post_server_periodic_hook(struct work_task *ptask) {
 	int	stat = ptask->wt_aux;
 	hook *phook = (hook *)ptask->wt_parm1;
 
+	/* server periodic hook */
+#ifdef WIN32
+	pid_t	 mypid = ptask->wt_aux2;
+#else
+	pid_t	 mypid = ptask->wt_event;
+#endif
+	char	hook_outfile[MAXPATHLEN+1];
+	char	reject_msg[HOOK_MSG_SIZE+1];
+	time_t	next_time;
+	char	*next_time_str;
+	int	accept_flag = 1;
+	int	hook_error_flag = 0;
+	int	reject_flag = 0;
+	int	rerun_flag = 0;
+	int	delete_flag = 0;
+	int	reboot_flag = 0;
+	char	reboot_cmd[HOOK_BUF_SIZE];
+	pbs_list_head vnl_changes;
+	svrattrl	*plist;
+	char *vnode_name;
+	struct pbsnode  *pnode;
+	int		numnodes = 1;	/* number of vnodes to be operated on */
+	int		bad = 0;
+	//struct batch_request *preq;
+	int rc;
+	int warn_idx = 0;
+	int problem_cnt = 0;
+	struct pbsnode  **warn_nodes = NULL;
+	struct pbsnode  **problem_nodes = (struct pbsnode**)0;
+/*****************************************/
+
 	if (WIFEXITED(stat)) {
+		CLEAR_HEAD(vnl_changes);
+			reboot_cmd[0] = '\0';
+			reject_msg[0] = '\0';
+
+			/* Check hook exit status */
+			if (stat == 0) {
+				snprintf(log_buffer, LOG_BUF_SIZE-1,
+					"Non-zero exit status %d encountered for periodic hook", stat);
+				log_event(PBSEVENT_DEBUG2, PBS_EVENTCLASS_HOOK,
+					LOG_ERR, phook->hook_name, log_buffer);
+				hook_error_flag = 1;	/* hook results are invalid */
+			}
+			/* hook results path */
+
+			snprintf(hook_outfile, MAXPATHLEN, FMT_HOOK_OUTFILE,
+				path_hooks_workdir, HOOKSTR_PERIODIC,
+				phook->hook_name, mypid);
+
+			if (hook_error_flag == 0) {
+				/* hook exited normally, get results from file  */
+				if (_get_hook_results(hook_outfile, &accept_flag, &reject_flag,
+					reject_msg, sizeof(reject_msg), &rerun_flag,
+					&delete_flag, &reboot_flag, reboot_cmd, HOOK_BUF_SIZE,
+					&vnl_changes, NULL, phook, 0, NULL, &vnode_name) != 0) {
+					log_event(PBSEVENT_DEBUG2, PBS_EVENTCLASS_HOOK,
+						LOG_ERR, phook->hook_name,
+						"Failed getting hook results");
+					/* error getting results, do not accept results */
+					hook_error_flag = 1;
+
+				}
+			}
+
+			if ((hook_error_flag == 1) || (accept_flag == 0)) {
+
+				snprintf(log_buffer, sizeof(log_buffer),
+					"%s request rejected by '%s'",
+					"periodic", phook->hook_name);
+				log_event(PBSEVENT_DEBUG2, PBS_EVENTCLASS_HOOK,
+					LOG_ERR, phook->hook_name, log_buffer);
+				if ((reject_msg != NULL) && (reject_msg[0] != '\0')) {
+					snprintf(log_buffer, sizeof(log_buffer), "%s",
+						reject_msg);
+					/* log also the custom reject message */
+					log_event(PBSEVENT_DEBUG2, PBS_EVENTCLASS_HOOK,
+						LOG_ERR, phook->hook_name, log_buffer);
+				}
+			}
+
+			if (hook_error_flag == 0) {
+				/* No hook error means data is communicated to */
+				/* the server and actions are done to jobs.    */
+				(void)snprintf(log_buffer, sizeof(log_buffer), "periodic hook accepted nodename = %s",vnode_name);
+				log_event(PBSEVENT_DEBUG3, PBS_EVENTCLASS_HOOK,
+					LOG_INFO, phook->hook_name, log_buffer);
+
+				//log_event(PBSEVENT_DEBUG3, PBS_EVENTCLASS_HOOK,
+				//	LOG_INFO, phook->hook_name, "periodic hook accepted");
+
+				/* remove the processed results file, note that if  */
+				/* there was an error, it is left for debugging use */
+				if (phook && !phook->debug)
+					(void)unlink(hook_outfile);	/* remove file */
+
+				if ((struct hook_vnl_action *)GET_NEXT(vnl_changes) != NULL) {
+
+					/* there are vnode hook updates */
+					/* Push hook changes to server */
+					pnode = find_nodebyname(vnode_name);
+					if (pnode == (struct pbsnode *)0) {
+						log_event(PBSEVENT_DEBUG3, PBS_EVENTCLASS_HOOK,
+							LOG_INFO, phook->hook_name, "node_name not found");
+							//req_reject(PBSE_UNKNODE, 0, preq);
+							return;
+					}
+					if (numnodes > 1) {
+						problem_nodes = (struct pbsnode **)malloc(numnodes * sizeof(struct pbsnode *));
+						if (problem_nodes == NULL) {
+							log_err(ENOMEM, __func__, "out of memory");
+							return;
+						}
+						problem_cnt = 0;
+					}
+
+					warn_idx = 0;
+					warn_nodes = (struct pbsnode **)malloc(numnodes * sizeof(struct pbsnode *));
+					if (warn_nodes == NULL) {
+						log_err(ENOMEM, __func__, "out of memory");
+						free(problem_nodes);
+						return;
+					}
+					warnings_update(WARN_ngrp_init, warn_nodes, &warn_idx, pnode);
+					plist = (svrattrl *)GET_NEXT(vnl_changes);
+					while(pnode) {
+						if ((pnode->nd_state & INUSE_DELETED) == 0) {
+
+							save_characteristic(pnode);
+
+							rc = mgr_set_attr(pnode->nd_attr, node_attr_def, ND_ATR_LAST,
+								plist, ATR_DFLAG_WRACC,                                    //ATR_DFLAG_SvWR //ATR_PERM_ALLOW_INDIRECT
+								&bad, (void *)pnode, ATR_ACTION_ALTER);
+							if (rc != 0) {
+								if (numnodes > 1) {
+									if (problem_nodes) {
+										/*we have an array in which to save*/
+										problem_nodes[ problem_cnt ] = pnode;
+										++problem_cnt;
+									}
+								} else {/*In the specific node case, reply w/ error and return*/
+									switch (rc) {
+										case PBSE_INTERNAL:
+										case PBSE_SYSTEM:
+											//req_reject(rc, bad, preq);
+											break;
+
+										case PBSE_NOATTR:
+										case PBSE_ATTRRO:
+										case PBSE_MUTUALEX:
+										case PBSE_BADNDATVAL:
+											//reply_badattr(rc, bad, plist, preq);
+											break;
+
+										default: log_event(PBSEVENT_DEBUG3, PBS_EVENTCLASS_HOOK,
+												LOG_INFO, phook->hook_name, "default case");
+											//req_reject(rc, 0, preq);
+									}
+									return;
+								}
+
+							} else {/*modifications succeed for this node*/
+
+								warnings_update(WARN_ngrp, warn_nodes, &warn_idx, pnode);
+
+								if ((pnode->nd_nsnfree == 0) && (pnode->nd_state == 0))
+									set_vnode_state(pnode, INUSE_JOB, Nd_State_Or);
+
+								(void)chk_characteristic(pnode, &need_todo);
+
+								mgr_log_attr(msg_man_set, plist,
+									PBS_EVENTCLASS_NODE, pnode->nd_name, NULL);
+							}
+						}
+						if (numnodes == 1)
+							break;	/* just the one vnode */
+					}
+				}
+			}
+			//vna_list_free(vnl_changes);	/* free the list of changes */
+
+			next_time = time_now+phook->freq;
+			next_time_str = ctime(&next_time);
+			if ((next_time_str != NULL) && (next_time_str[0] != '\0')) {
+				next_time_str[strlen(next_time_str)-1] = '\0'; /* rem newline */
+				snprintf(log_buffer, sizeof(log_buffer), "will run on %s",
+					next_time_str);
+				log_event(PBSEVENT_DEBUG3, PBS_EVENTCLASS_HOOK,
+					LOG_ERR, phook->hook_name, log_buffer);
+			}
 		(void)sprintf(log_buffer, "Server periodic hook ran successfully");
 	} else {
 		(void)sprintf(log_buffer, "Server periodic hook encountered errors", stat);
@@ -6747,6 +6992,49 @@ void post_server_periodic_hook(struct work_task *ptask) {
 	}
 	return;
 }
+
+/**
+ * @brief
+ * @brief
++ * 		getting the vnode attribute and resource list
++ *
++ * @see
++ * 		run_periodic_hook
++ *
++ * @return void
++ */
+static pbs_list_head *
+get_vnode_list(void){
+	int i;
+	int index;
+	int limit = ND_ATR_LAST;
+	char		name_str_buf[STRBUF+1] = {'\0'};
+	struct pbsnode	*pnode = (struct pbsnode*)0;
+	attribute_def *padef= node_attr_def;
+	int rc = 0;
+	CLEAR_HEAD(vnode_attr_list);
+	for (i = 0; i < svr_totnodes; i++) {
+		pnode = pbsndlist[i];
+		for (index = 0; index < limit; index++) {
+			if ((padef+index)->at_flags & ATR_VFLAG_SET) {
+				strcpy(name_str_buf, pnode->nd_name);
+				strcat(name_str_buf, ".");
+				strcat(name_str_buf, (padef+index)->at_name);
+				rc = (padef+index)->at_encode(
+						&pnode->nd_attr[index],
+						&vnode_attr_list, name_str_buf,
+						(char *)0, ATR_ENCODE_HOOK, NULL);
+				if (rc < 0) {
+					rc = -rc;
+					break;
+				}
+				rc = 0;
+			}
+		}
+	}
+	return &vnode_attr_list;
+}
+
 
 /**
  * @brief
@@ -6830,7 +7118,8 @@ run_periodic_hook(struct work_task *ptask)
 		net_close(-1);
 		/* Unprotect child from being killed by kernel */
 		daemon_protect(0, PBS_DAEMON_PROTECT_OFF);
-		ret = server_process_hooks(PBS_BATCH_HookPeriodic, NULL, NULL, phook, 
+		req_ptr.vns_list = (pbs_list_head *)get_vnode_list();
+		ret = server_process_hooks(PBS_BATCH_HookPeriodic, NULL, NULL, phook,
 					   HOOK_EVENT_PERIODIC, NULL, &req_ptr, hook_msg,
 					   sizeof(hook_msg), pbs_python_set_interrupt, &num_run, &event_initialized);
 		if (ret == 0)

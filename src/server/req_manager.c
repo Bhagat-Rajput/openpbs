@@ -173,7 +173,7 @@ vnpool_mom_t    *vnode_pool_mom_list = NULL;
 
 static char *all_quename = "_All_";
 static char *all_nodes = "_All_";
-static int   need_todo = 0;
+int need_todo = 0;
 enum res_op_flag {
 	INDIRECT_RES_UNLINK,
 	INDIRECT_RES_CHECK,
