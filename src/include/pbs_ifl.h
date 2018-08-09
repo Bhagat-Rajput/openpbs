@@ -317,6 +317,7 @@ extern "C" {
 #define ATTR_python_restart_min_interval "python_restart_min_interval"
 #define ATTR_power_provisioning "power_provisioning"
 #define ATTR_sync_mom_hookfiles_timeout "sync_mom_hookfiles_timeout"
+#define ATTR_max_job_sequence_id "max_job_sequence_id"
 
 /**
  * RPP_MAX_PKT_CHECK_DEFAULT controls the number of loops used to process
@@ -446,9 +447,9 @@ enum mgr_obj {
 #define PBS_MAXPWLEN		256	/* max password length */
 #define PBS_MAXGRPN		256	/* max group name length */
 #define PBS_MAXQUEUENAME	15	/* max queue name length */
-#define PBS_MAXJOBNAME 		236	/* max job name length */
+#define PBS_MAXJOBNAME 		230	/* max job name length */
 #define PBS_MAXSERVERNAME	PBS_MAXHOSTNAME	/* max server name length */
-#define PBS_MAXSEQNUM		7	/* max sequence number length */
+#define PBS_MAXSEQNUM		12	/* max sequence number length */
 #define PBS_MAXPORTNUM		5	/* udp/tcp port numbers max=16 bits */
 #define PBS_MAXSVRJOBID		(PBS_MAXSEQNUM - 1 + PBS_MAXSERVERNAME + PBS_MAXPORTNUM + 2) /* server job id size, -1 to keep same length when made SEQ 7 */
 #define PBS_MAXSVRRESVID	(PBS_MAXSVRJOBID)
