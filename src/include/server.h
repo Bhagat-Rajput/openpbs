@@ -157,6 +157,7 @@ enum srv_atr {
 	SRV_ATR_show_hidden_attribs,
 	SRV_ATR_sync_mom_hookfiles_timeout,
 	SRV_ATR_rpp_max_pkt_check,
+	SRV_ATR_max_job_sequence_id,
 	/* This must be last */
 	SRV_ATR_LAST
 };
@@ -253,6 +254,7 @@ enum failover_state {
 #define SVR_CLEAN_JOBHIST_TM	120	/* after 2 minutes, reschedule the work task */
 #define SVR_CLEAN_JOBHIST_SECS	5	/* never spend more than 5 seconds in one sweep to clean hist */
 #define SVR_JOBHIST_DEFAULT	1209600	/* default time period to keep job history: 2 weeks */
+#define SVR_MAX_JOB_SEQ_NUM_DEFAULT 9999999 /* default max job id is 9999999 */
 
 #define VALUE(str) #str
 #define TOSTR(str) VALUE(str)

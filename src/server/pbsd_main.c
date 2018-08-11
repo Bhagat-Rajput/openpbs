@@ -312,6 +312,7 @@ int svr_unsent_qrun_req = 0;	/* Set to 1 for scheduling unsent qrun requests */
 
 long		  svr_history_enable = 0; /*disable by default*/
 long		  svr_history_duration = SVR_JOBHIST_DEFAULT; /* default 2 weeks */
+long long     svr_max_job_sequence_id = SVR_MAX_JOB_SEQ_NUM_DEFAULT; /* default max job id 9999999 */
 
 AVL_IX_DESC	*AVL_jctx = NULL;
 

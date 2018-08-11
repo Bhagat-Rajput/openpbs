@@ -94,6 +94,7 @@ int verify_datatype_float(struct attropl *, char **);
 int verify_datatype_time(struct attropl *, char **);
 int verify_datatype_nodes(struct attropl * , char **);
 int verify_datatype_select(struct attropl * , char **);
+int verify_datatype_long_long(struct attropl *, char **);
 
 
 /* verify value functions */
