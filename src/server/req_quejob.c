@@ -162,6 +162,7 @@ extern struct server server;
 extern struct attribute attr_jobscript_max_size;
 extern char  server_name[];
 extern char *resc_in_err;
+extern long long svr_max_job_sequence_id;
 #endif	/* PBS_MOM */
 
 extern int	 resc_access_perm;
@@ -435,8 +436,8 @@ req_quejob(struct batch_request *preq)
 		}
 		jid = jidbuf;
 
-		if (++server.sv_qs.sv_jobidnumber > PBS_SEQNUMTOP)
-			server.sv_qs.sv_jobidnumber = 0;	/* wrap it */
+		if (++server.sv_qs.sv_jobidnumber > svr_max_job_sequence_id)
+			server.sv_qs.sv_jobidnumber = 0; /* wrap it */
 	}
 
 #else		/* PBS_MOM mom mom mom mom mom mom*/
@@ -2677,7 +2678,7 @@ req_resvSub(struct batch_request *preq)
 
 	(void)snprintf(qbuf, sizeof(qbuf), "%c%d", PBS_RESV_ID_CHAR,
 		server.sv_qs.sv_jobidnumber);
-	if (++server.sv_qs.sv_jobidnumber > PBS_SEQNUMTOP)
+	if (++server.sv_qs.sv_jobidnumber > svr_max_job_sequence_id)
 		server.sv_qs.sv_jobidnumber = 0;	   /* wrap it */
 
 

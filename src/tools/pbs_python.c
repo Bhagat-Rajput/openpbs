@@ -504,6 +504,12 @@ unset_job_history_duration(void)
 }
 
 int
+set_max_job_sequence_id(attribute *pattr, void *pobject, int actmode)
+{
+	return (PBSE_NONE);
+}
+
+int
 eligibletime_action(attribute *pattr, void *pobject, int actmode)
 {
 	return 0;

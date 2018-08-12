@@ -1326,7 +1326,7 @@ verify_value_non_zero_positive(int batch_request, int parent_object,
 
 /**
  * @brief
- *	for some attributes which can have only +ve values, eg, ATTR_max_job_sequence_id
+ *	for some attributes which can have only +ve long values, eg, ATTR_max_job_sequence_id
  *
  * @see
  *

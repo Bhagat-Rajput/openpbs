@@ -1204,10 +1204,10 @@ display_statjob(struct batch_status *status, struct batch_status *prtheader, int
 		if (c)
 			printf("%s\n", c);
 		if (p_opt)
-			printf("Job id            Name             User               %% done  S Queue\n");
+			printf("Job id                 Name             User               %% done  S Queue\n");
 		else
-			printf("Job id            Name             User              Time Use S Queue\n");
-		printf    ("----------------  ---------------- ----------------  -------- - -----\n");
+			printf("Job id                 Name             User              Time Use S Queue\n");
+		printf    ("---------------------  ---------------- ----------------  -------- - -----\n");
 	}
 
 	if(output_format == FORMAT_JSON && first_stat) {

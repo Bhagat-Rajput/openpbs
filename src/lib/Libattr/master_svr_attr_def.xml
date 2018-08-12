@@ -1689,7 +1689,7 @@
 	</member_verify_function>
    </attributes>
    <attributes>
-   /* SVR_ATR_max_job_sequence_id */
+   /* SRV_ATR_max_job_sequence_id */
 	<member_name><both>ATTR_max_job_sequence_id</both></member_name>	<!-- max_job_sequence_id -->
 	<member_at_decode>decode_ll</member_at_decode>
 	<member_at_encode>encode_ll</member_at_encode>

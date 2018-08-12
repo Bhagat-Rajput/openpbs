@@ -7320,6 +7320,7 @@ SWIG_init(void) {
   SWIG_Python_SetConstant(d, "ATTR_preempt_targets_enable",SWIG_FromCharPtr("preempt_targets_enable"));
   SWIG_Python_SetConstant(d, "ATTR_job_sort_formula_threshold",SWIG_FromCharPtr("job_sort_formula_threshold"));
   SWIG_Python_SetConstant(d, "ATTR_throughput_mode",SWIG_FromCharPtr("throughput_mode"));
+  SWIG_Python_SetConstant(d, "ATTR_max_job_sequence_id",SWIG_FromCharPtr("max_job_sequence_id"));
   SWIG_Python_SetConstant(d, "ATTR_NODE_Host",SWIG_FromCharPtr("Host"));
   SWIG_Python_SetConstant(d, "ATTR_NODE_Mom",SWIG_FromCharPtr("Mom"));
   SWIG_Python_SetConstant(d, "ATTR_NODE_Port",SWIG_FromCharPtr("Port"));
