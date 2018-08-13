@@ -1594,9 +1594,9 @@ set_max_job_sequence_id(attribute *pattr, void *pobject, int actmode)
 	if ((actmode == ATR_ACTION_ALTER) ||
 		(actmode == ATR_ACTION_RECOV)) {
 
-		if ((pattr->at_val.at_ll < 0) ||
+		if ((pattr->at_val.at_ll < SVR_MAX_JOB_SEQ_NUM_DEFAULT) ||
 			(pattr->at_val.at_ll > PBS_SEQNUMTOP)) {
-			return (PBSE_BADATVAL);
+			return (PBSE_INVALID_MAX_JOB_SEQUENCE_ID);
 		}
 		svr_max_job_sequence_id = pattr->at_val.at_ll;
 		sprintf(log_buffer, "svr_max_job_sequence_id set to val %lld",
