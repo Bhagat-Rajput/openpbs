@@ -137,6 +137,7 @@ extern	void unset_license_max(void);
 extern	void unset_license_linger(void);
 extern	void unset_job_history_enable(void);
 extern	void unset_job_history_duration(void);
+extern	void unset_max_job_sequence_id(void);
 extern	void force_qsub_daemons_update(void);
 extern  void unset_node_fail_requeue(void);
 extern pbs_sched *sched_alloc(char *sched_name);
@@ -1596,6 +1597,9 @@ mgr_server_unset(struct batch_request *preq)
 		} else if (strcasecmp(plist->al_name,
 			ATTR_JobHistoryDuration) == 0) {
 			unset_job_history_duration();
+		} else if (strcasecmp(plist->al_name,
+			ATTR_max_job_sequence_id) == 0) {
+			unset_max_job_sequence_id();
 		} else if (strcasecmp(plist->al_name,
 			ATTR_max_concurrent_prov) == 0) {
 			max_concurrent_prov = PBS_MAX_CONCURRENT_PROV;

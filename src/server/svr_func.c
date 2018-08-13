@@ -68,10 +68,11 @@
  * 	unset_license_linger()
  * 	unset_job_history_enable()
  * 	set_job_history_enable()
- * 	set_max_job_sequence_id()
  * 	set_log_events()
  * 	set_job_history_duration()
  * 	unset_job_history_duration()
+ * 	set_max_job_sequence_id()
+ * 	unset_max_job_sequence_id()
  * 	eligibletime_action()
  * 	decode_formula()
  * 	is_attrs_in_list_set()
@@ -1603,8 +1604,23 @@ set_max_job_sequence_id(attribute *pattr, void *pobject, int actmode)
 		log_event(PBSEVENT_ADMIN, PBS_EVENTCLASS_SERVER,
 			LOG_NOTICE, msg_daemonname, log_buffer);
 	}
-	//reset_sv_sequence_window();
 	return (PBSE_NONE);
+}
+
+/**
+ * @brief
+ *		unset_max_job_sequence_id - set server attribute "max_job_sequence_id" to
+ *		                            default value.
+ */
+void
+unset_max_job_sequence_id(void)
+{
+	svr_max_job_sequence_id = SVR_MAX_JOB_SEQ_NUM_DEFAULT;
+	sprintf(log_buffer,
+		"svr_max_job_sequence_id reverting back to default val %lld",
+		svr_max_job_sequence_id);
+	log_event(PBSEVENT_ADMIN, PBS_EVENTCLASS_SERVER,
+		LOG_NOTICE, msg_daemonname, log_buffer);
 }
 
 /**
