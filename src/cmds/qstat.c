@@ -1197,17 +1197,17 @@ display_statjob(struct batch_status *status, struct batch_status *prtheader, int
 	char *hpcbp_executable;
 
 	sprintf(format, "%%-%ds %%-%ds %%-%ds  %%%ds %%%ds %%-%ds\n",
-		PBS_MAXSEQNUM+10, NAMEL, OWNERL, TIMEUL, STATEL, LOCL);
+		PBS_MAXSEQNUM+5, NAMEL, OWNERL, TIMEUL, STATEL, LOCL);
 
 	if (! full && prtheader && output_format == FORMAT_DEFAULT) {
 		c = get_attr(prtheader->attribs, ATTR_comment, NULL);
 		if (c)
 			printf("%s\n", c);
 		if (p_opt)
-			printf("Job id                 Name             User               %% done  S Queue\n");
+			printf("Job id            Name             User               %% done  S Queue\n");
 		else
-			printf("Job id                 Name             User              Time Use S Queue\n");
-		printf    ("---------------------  ---------------- ----------------  -------- - -----\n");
+			printf("Job id            Name             User              Time Use S Queue\n");
+		printf    ("----------------  ---------------- ----------------  -------- - -----\n");
 	}
 
 	if(output_format == FORMAT_JSON && first_stat) {
@@ -1313,8 +1313,8 @@ display_statjob(struct batch_status *status, struct batch_status *prtheader, int
 				while (*c != '.' && *c != '\0') c++;
 				*c = '\0';
 				l = strlen(p->name);
-				if (l > (PBS_MAXSEQNUM+10)) {
-					c = p->name + PBS_MAXSEQNUM + 10;
+				if (l > (PBS_MAXSEQNUM+5)) {
+					c = p->name + PBS_MAXSEQNUM + 5;
 					*c = '\0';
 				}
 				jid = p->name;
