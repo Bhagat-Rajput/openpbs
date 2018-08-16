@@ -167,7 +167,7 @@ struct server {
 	struct server_qs {
 		int  sv_numjobs;	 /* number of job owned by server   */
 		int  sv_numque;		/* nuber of queues managed          */
-		int  sv_jobidnumber;	/* next number to use in new jobid  */
+		long long  sv_jobidnumber;	/* next number to use in new jobid  */
 		time_t sv_savetm;	/* time of server db update         */
 	} sv_qs;
 

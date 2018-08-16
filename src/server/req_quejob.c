@@ -428,10 +428,10 @@ req_quejob(struct batch_request *preq)
 		}
 		created_here = JOB_SVFLG_HERE;
 		if (i == 0) {	/* Normal job */
-			(void)sprintf(jidbuf, "%d.%s",
+			(void)sprintf(jidbuf, "%lld.%s",
 				server.sv_qs.sv_jobidnumber, server_name);
 		} else {	/* Array Job */
-			(void)sprintf(jidbuf, "%d[].%s",
+			(void)sprintf(jidbuf, "%lld[].%s",
 				server.sv_qs.sv_jobidnumber, server_name);
 		}
 		jid = jidbuf;
@@ -2661,7 +2661,7 @@ req_resvSub(struct batch_request *preq)
 		/* Note: use server's job seq number generation mechanism */
 
 		created_here = RESV_SVFLG_HERE;
-		(void)snprintf(ridbuf, sizeof(ridbuf), "%c%d.", PBS_RESV_ID_CHAR,
+		(void)snprintf(ridbuf, sizeof(ridbuf), "%c%lld.", PBS_RESV_ID_CHAR,
 			server.sv_qs.sv_jobidnumber);
 		(void)strcat(ridbuf, server_name);
 		rid = ridbuf;
@@ -2676,7 +2676,7 @@ req_resvSub(struct batch_request *preq)
 	 * "quick save" area of the server - can't do
 	 */
 
-	(void)snprintf(qbuf, sizeof(qbuf), "%c%d", PBS_RESV_ID_CHAR,
+	(void)snprintf(qbuf, sizeof(qbuf), "%c%lld", PBS_RESV_ID_CHAR,
 		server.sv_qs.sv_jobidnumber);
 	if (++server.sv_qs.sv_jobidnumber > svr_max_job_sequence_id)
 		server.sv_qs.sv_jobidnumber = 0;	   /* wrap it */

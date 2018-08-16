@@ -50,7 +50,7 @@ extern "C" {
  * BEWARE OF CHANGING THESE
  */
 #ifndef PBS_MAXNODENAME
-#define PBS_MAXNODENAME 79	/* max lenght of a vnode name		    */
+#define PBS_MAXNODENAME 79	/* max length of a vnode name		    */
 #endif
 #define	PBS_JOBBASE	11	/* basename size for job file, 11 = 14 -3   */
 /* where 14 is min file name, 3 for suffix  */

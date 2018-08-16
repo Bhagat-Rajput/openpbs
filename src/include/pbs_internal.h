@@ -99,7 +99,7 @@ extern "C" {
 #define ATR_TYPE_RESC	 6	/* list type: resources only */
 #define ATR_TYPE_LIST    7	/* list type:  dependencies, unkn, etc */
 #define ATR_TYPE_ACL	 8	/* Access Control Lists */
-#define ATR_TYPE_LL	 9	/* Long (64 bit) integer */
+#define ATR_TYPE_LL	     9	/* Long (64 bit) integer */
 #define ATR_TYPE_SHORT	 10	/* short integer    */
 #define ATR_TYPE_BOOL	 11	/* boolean	    */
 #define ATR_TYPE_JINFOP	 13	/* struct jobinfo*  */

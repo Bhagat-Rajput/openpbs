@@ -77,7 +77,7 @@ CREATE TABLE pbs.server (
     sv_hostname		TEXT		NOT NULL, /* the actual server hostname - can change */
     sv_numjobs		INTEGER		NOT NULL,
     sv_numque		INTEGER		NOT NULL,
-    sv_jobidnumber	INTEGER		NOT NULL,
+    sv_jobidnumber	BIGINT		NOT NULL,
     sv_svraddr		BIGINT		NOT NULL,
     sv_svrport		INTEGER		NOT NULL,
     sv_savetm		TIMESTAMP	NOT NULL,

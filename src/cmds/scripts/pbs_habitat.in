@@ -633,6 +633,7 @@ upgrade_pbs_schema_from_v1_1_0() {
 		create index job_attr_idx on pbs.job_attr (ji_jobid, attr_name, attr_resource);
 		alter table pbs.subjob_track drop constraint subjob_track_pkey cascade;
 		create index subjob_jid_idx on pbs.subjob_track (ji_jobid, trk_index);
+		alter table pbs.server alter column sv_jobidnumber TYPE BIGINT;
 		update pbs.info set pbs_schema_version = '1.2.0';
 	EOF
 	ret=$?
