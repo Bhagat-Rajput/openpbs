@@ -1350,12 +1350,12 @@ int
 verify_value_non_zero_positive_long_long(int batch_request, int parent_object,
 	int cmd, struct attropl *pattr, char **err_msg)
 {
-	long long l=-1;
+	long long l = -1;
     char *pc = NULL;
 	if ((pattr->value == NULL) || (pattr->value[0] == '\0'))
 		return PBSE_BADATVAL;
 
-	l = strToL(pattr->value, &pc, 10);
+	l = strTouL(pattr->value, &pc, 10);
 	if ((*pc != '\0') || (errno == ERANGE)){
 		return PBSE_BADATVAL;
 	}

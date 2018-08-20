@@ -78,6 +78,10 @@ static char *	cvtResvstate(char *);
 static int cmp_est_time(struct batch_status *a, struct batch_status *b);
 char *cnvt_est_start_time(char *start_time, int shortform);
 
+/* dynamic qstat */
+static long long get_max_job_sequence_id();
+#define DFLT_MAX_JOB_SEQUENCE_ID 9999999
+
 #if !defined(PBS_NO_POSIX_VIOLATION)
 /* defines for alternative display formats */
 #define ALT_DISPLAY_a	1	/* -a option - show all jobs */
@@ -697,7 +701,7 @@ cnv_size(char *value, int opt)
  */
 
 static void
-altdsp_statjob(struct batch_status *pstat, struct batch_status *prtheader, int alt_opt, int wide)
+altdsp_statjob(struct batch_status *pstat, struct batch_status *prtheader, int alt_opt, int wide, int incr_width)
 {
 	char *comment;
 	char *pc;
@@ -784,14 +788,24 @@ altdsp_statjob(struct batch_status *pstat, struct batch_status *prtheader, int a
 			printf("------ ----- - -----\n");
 		} else {
 			if (alt_opt & ALT_DISPLAY_T) {
-				printf("\n%75s%s\n%60s%-7s%-8s%s\n", " ", "Est", " ", "Req'd", "Req'd", "Start");
+				if(incr_width)
+					printf("\n%80s%s\n%65s%-7s%-8s%s\n", " ", "Est", " ", "Req'd", "Req'd", "Start");
+				else
+					printf("\n%75s%s\n%60s%-7s%-8s%s\n", " ", "Est", " ", "Req'd", "Req'd", "Start");
 			} else {
-				printf("\n%60s%-7s%-8s%s\n", " ", "Req'd", "Req'd", "Elap");
+				if(incr_width)
+					printf("\n%65s%-7s%-8s%s\n", " ", "Req'd", "Req'd", "Elap");
+				else
+					printf("\n%60s%-7s%-8s%s\n", " ", "Req'd", "Req'd", "Elap");
 			}
-
-
-			printf("Job ID          Username Queue    Jobname    SessID NDS TSK Memory Time  S Time\n");
-			printf("--------------- -------- -------- ---------- ------ --- --- ------ ----- - -----\n");
+			if(incr_width){
+				printf("Job ID               Username Queue    Jobname    SessID NDS TSK Memory Time  S Time\n");
+				printf("-------------------- -------- -------- ---------- ------ --- --- ------ ----- - -----\n");
+			}
+			else {
+				printf("Job ID          Username Queue    Jobname    SessID NDS TSK Memory Time  S Time\n");
+				printf("--------------- -------- -------- ---------- ------ --- --- ------ ----- - -----\n");
+			}
 		}
 	}
 	while (pstat) {
@@ -930,8 +944,14 @@ altdsp_statjob(struct batch_status *pstat, struct batch_status *prtheader, int a
 				jstate,
 				timeval);
 		} else {
-			printf("%-15.15s %-8.8s %-8.8s ",
-				pstat->name, usern, queuen);
+			if(incr_width) {
+				printf("%-20.20s %-8.8s %-8.8s ",
+						pstat->name, usern, queuen);
+			}
+			else {
+				printf("%-15.15s %-8.8s %-8.8s ",
+						pstat->name, usern, queuen);
+			}
 			printf("%-10.10s %6.6s %3.3s %3.3s %6.6s %5.5s %1.1s %5.5s",
 				jobn, sess, nodect, tasks,
 				rqmem,
@@ -1175,7 +1195,7 @@ percent_cal(char *state, char *timeu, char *timer, char *wtimu, char *wtimr, cha
  */
 
 int
-display_statjob(struct batch_status *status, struct batch_status *prtheader, int full, int p_opt, int alt_opt)
+display_statjob(struct batch_status *status, struct batch_status *prtheader, int full, int p_opt, int alt_opt, int incr_width)
 {
 	struct batch_status *p;
 	struct attrl *a;
@@ -1196,18 +1216,33 @@ display_statjob(struct batch_status *status, struct batch_status *prtheader, int
 	char *cmdargs = NULL;
 	char *hpcbp_executable;
 
-	sprintf(format, "%%-%ds %%-%ds %%-%ds  %%%ds %%%ds %%-%ds\n",
-		PBS_MAXSEQNUM+5, NAMEL, OWNERL, TIMEUL, STATEL, LOCL);
+	if(incr_width){
+		sprintf(format, "%%-%ds %%-%ds %%-%ds  %%%ds %%%ds %%-%ds\n",
+			PBS_MAXSEQNUM+10, NAMEL, OWNERL, TIMEUL, STATEL, LOCL);
+	}
+	else{
+		sprintf(format, "%%-%ds %%-%ds %%-%ds  %%%ds %%%ds %%-%ds\n",
+			PBS_MAXSEQNUM+5, NAMEL, OWNERL, TIMEUL, STATEL, LOCL);
+	}
 
 	if (! full && prtheader && output_format == FORMAT_DEFAULT) {
 		c = get_attr(prtheader->attribs, ATTR_comment, NULL);
 		if (c)
 			printf("%s\n", c);
 		if (p_opt)
-			printf("Job id            Name             User               %% done  S Queue\n");
+			if(incr_width)
+				printf("Job id                 Name             User               %% done  S Queue\n");
+			else
+				printf("Job id            Name             User               %% done  S Queue\n");
 		else
-			printf("Job id            Name             User              Time Use S Queue\n");
-		printf    ("----------------  ---------------- ----------------  -------- - -----\n");
+			if(incr_width){
+				printf("Job id                 Name             User              Time Use S Queue\n");
+		    	printf("---------------------  ---------------- ----------------  -------- - -----\n");
+			}
+		    else {
+				printf("Job id            Name             User              Time Use S Queue\n");
+			    printf("----------------  ---------------- ----------------  -------- - -----\n");
+		    }
 	}
 
 	if(output_format == FORMAT_JSON && first_stat) {
@@ -1313,11 +1348,20 @@ display_statjob(struct batch_status *status, struct batch_status *prtheader, int
 				while (*c != '.' && *c != '\0') c++;
 				*c = '\0';
 				l = strlen(p->name);
-				if (l > (PBS_MAXSEQNUM+5)) {
-					c = p->name + PBS_MAXSEQNUM + 5;
-					*c = '\0';
+				if (incr_width){
+					if(l > (PBS_MAXSEQNUM+10)){
+						c = p->name + PBS_MAXSEQNUM + 10;
+						*c = '\0';
+					}
+					jid = p->name;
 				}
-				jid = p->name;
+				else {
+					if (l > (PBS_MAXSEQNUM+5)) {
+						c = p->name + PBS_MAXSEQNUM + 5;
+					    *c = '\0';
+					}
+					jid = p->name;
+				}
 			}
 			a = p->attribs;
 			while (a != NULL) {
@@ -2142,6 +2186,10 @@ main(int argc, char **argv, char **envp) /* qstat */
 	int format = 0;
 	time_t timenow;
 
+	/* for dynamic qstat */
+	int incr_width = 0;
+	long long max_job_sequence_id;
+
 #if TCL_QSTAT
 	char option[3];
 #endif
@@ -2195,7 +2243,6 @@ main(int argc, char **argv, char **envp) /* qstat */
 #ifdef WIN32
 	winsock_init();
 #endif
-
 
 	mode = JOBS; /* default */
 	alt_opt = 0;
@@ -2810,6 +2857,13 @@ job_no_args:
 						any_failed = pbs_errno;
 					}
 				} else {
+					if((max_job_sequence_id = get_max_job_sequence_id()) != 1){
+							if(max_job_sequence_id > DFLT_MAX_JOB_SEQUENCE_ID)
+								incr_width = 1;
+						}
+					else{
+						exit(1);
+					}
 #ifdef NAS /* localmod 071 */
 					if (p_server) {
 						tcl_stat("serverhdr", p_server, tcl_opt);
@@ -2817,19 +2871,20 @@ job_no_args:
 					}
 					if (tcl_stat("job", p_status, tcl_opt)) {
 						if (alt_opt != 0) {
-							altdsp_statjob(p_status, p_server, alt_opt, wide);
+							altdsp_statjob(p_status, p_server, alt_opt, wide, dynam, incr_width);
 						} else
 							if(display_statjob(p_status, p_server, f_opt,
-								p_opt)) {
+								p_opt, incr_width)) {
 								fprintf(stderr, "qstat: out of memory\n");
 								exit(1);
 							}
 					}
 #else
+
 					if (alt_opt != 0 && !(wide && f_opt)) {
-						altdsp_statjob(p_status, p_server, alt_opt, wide);
+						altdsp_statjob(p_status, p_server, alt_opt, wide, incr_width);
 					} else if (f_opt == 0 || tcl_stat("job", p_status, f_opt))
-						if(display_statjob(p_status, p_server, f_opt, p_opt, alt_opt)) {
+						if(display_statjob(p_status, p_server, f_opt, p_opt, alt_opt, incr_width)) {
 							fprintf(stderr, "qstat: out of memory\n");
 							exit(1);
 						}
@@ -3225,3 +3280,80 @@ cnvt_est_start_time(char *est_time, int wide)
 	return timebuf;
 }
 
+/*
+ * @brief
+ *	get_max_job_sequence_id - connect to the server and retrieve the
+ *			max_job_sequence_id attribute value
+ *
+ * @return long long
+ *
+ */
+static
+long long get_max_job_sequence_id(){
+
+#ifdef NAS /* localmod 071 */
+	int tcl_opt = 1;
+#endif /* localmod 071 */
+#ifdef TCL_STAT
+	int f_opt = 1;
+#endif
+	struct batch_status *server_attrs;
+	struct attrl *attr;
+	int connect;
+	char *errmsg;
+	long long max_job_seq_id_value;
+    char server_out[MAXSERVERNAME];
+    int attr_found = 0;
+    server_out[0] = '\0';
+	connect = cnt2server(server_out);
+	if (connect <= 0) {
+			fprintf(stderr, "qstat: cannot connect to server %s (errno=%d)\n",
+					pbs_server, pbs_errno);
+#ifdef NAS /* localmod 071 */
+			(void)tcl_stat(error, NULL, tcl_opt);
+#else
+			(void)tcl_stat(error, NULL, f_opt);
+#endif /* localmod 071 */
+			return 1;
+	}
+	server_attrs = pbs_statserver(connect, NULL, NULL);
+	if (server_attrs == NULL) {
+		if (pbs_errno) {
+			errmsg = pbs_geterrmsg(connect);
+			if (errmsg != NULL) {
+				fprintf(stderr, "qstat: %s ", errmsg);
+			} else {
+				fprintf(stderr, "qstat: Error (%d) getting status of server ", pbs_errno);
+			}
+			fprintf(stderr, "%s\n", server_out);
+#ifdef NAS /* localmod 071 */
+			(void)tcl_stat(error, NULL, tcl_opt);
+#else
+			(void)tcl_stat(error, NULL, f_opt);
+#endif /* localmod 071 */
+		}
+		return 1;
+	} else {
+#ifdef NAS /* localmod 071 */
+		if (tcl_stat("server", server_attrs, tcl_opt))
+#else
+		if (tcl_stat("server", server_attrs, f_opt))
+#endif /* localmod 071 */
+			attr = server_attrs->attribs;
+			while(attr != NULL){
+				if(strcmp(attr->name, ATTR_max_job_sequence_id) == 0){
+					max_job_seq_id_value = strtoul(attr->value, NULL, 10);
+					attr_found = 1;
+				}
+				attr = attr->next;
+			}
+		pbs_statfree(server_attrs);
+		pbs_disconnect(connect);
+		if(attr_found)
+			return max_job_seq_id_value;
+		else
+			/* if server is not configured for max_job_sequence_id
+			 * or attribute is unset */
+			return DFLT_MAX_JOB_SEQUENCE_ID;
+	}
+}

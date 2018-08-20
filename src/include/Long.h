@@ -161,7 +161,6 @@ typedef unsigned long long	u_Long;
 /* What an amazing concept, long as the longest supported integer data type! */
 /* Congratulations Cray, for being the only ones so far to get it right! */
 
-typedef long long       Long_Long;
 typedef long			Long;
 typedef unsigned long		u_Long;
 
