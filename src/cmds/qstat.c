@@ -78,9 +78,6 @@ static char *	cvtResvstate(char *);
 static int cmp_est_time(struct batch_status *a, struct batch_status *b);
 char *cnvt_est_start_time(char *start_time, int shortform);
 
-/* dynamic qstat */
-static long long get_max_job_sequence_id();
-#define DFLT_MAX_JOB_SEQUENCE_ID 9999999
 
 #if !defined(PBS_NO_POSIX_VIOLATION)
 /* defines for alternative display formats */
@@ -2186,9 +2183,10 @@ main(int argc, char **argv, char **envp) /* qstat */
 	int format = 0;
 	time_t timenow;
 
-	/* for dynamic qstat */
+	/* increase qstat width */
 	int incr_width = 0;
 	long long max_job_sequence_id;
+	char *cmd_name = "qstat";
 
 #if TCL_QSTAT
 	char option[3];
@@ -2857,8 +2855,9 @@ job_no_args:
 						any_failed = pbs_errno;
 					}
 				} else {
-					if((max_job_sequence_id = get_max_job_sequence_id()) != 1){
-							if(max_job_sequence_id > DFLT_MAX_JOB_SEQUENCE_ID)
+
+					if((max_job_sequence_id = get_max_job_sequence_id(cmd_name)) != 1){
+							if(max_job_sequence_id > PBS_DFLT_MAX_JOB_SEQUENCE_ID)
 								incr_width = 1;
 						}
 					else{
@@ -3280,80 +3279,3 @@ cnvt_est_start_time(char *est_time, int wide)
 	return timebuf;
 }
 
-/*
- * @brief
- *	get_max_job_sequence_id - connect to the server and retrieve the
- *			max_job_sequence_id attribute value
- *
- * @return long long
- *
- */
-static
-long long get_max_job_sequence_id(){
-
-#ifdef NAS /* localmod 071 */
-	int tcl_opt = 1;
-#endif /* localmod 071 */
-#ifdef TCL_STAT
-	int f_opt = 1;
-#endif
-	struct batch_status *server_attrs;
-	struct attrl *attr;
-	int connect;
-	char *errmsg;
-	long long max_job_seq_id_value;
-    char server_out[MAXSERVERNAME];
-    int attr_found = 0;
-    server_out[0] = '\0';
-	connect = cnt2server(server_out);
-	if (connect <= 0) {
-			fprintf(stderr, "qstat: cannot connect to server %s (errno=%d)\n",
-					pbs_server, pbs_errno);
-#ifdef NAS /* localmod 071 */
-			(void)tcl_stat(error, NULL, tcl_opt);
-#else
-			(void)tcl_stat(error, NULL, f_opt);
-#endif /* localmod 071 */
-			return 1;
-	}
-	server_attrs = pbs_statserver(connect, NULL, NULL);
-	if (server_attrs == NULL) {
-		if (pbs_errno) {
-			errmsg = pbs_geterrmsg(connect);
-			if (errmsg != NULL) {
-				fprintf(stderr, "qstat: %s ", errmsg);
-			} else {
-				fprintf(stderr, "qstat: Error (%d) getting status of server ", pbs_errno);
-			}
-			fprintf(stderr, "%s\n", server_out);
-#ifdef NAS /* localmod 071 */
-			(void)tcl_stat(error, NULL, tcl_opt);
-#else
-			(void)tcl_stat(error, NULL, f_opt);
-#endif /* localmod 071 */
-		}
-		return 1;
-	} else {
-#ifdef NAS /* localmod 071 */
-		if (tcl_stat("server", server_attrs, tcl_opt))
-#else
-		if (tcl_stat("server", server_attrs, f_opt))
-#endif /* localmod 071 */
-			attr = server_attrs->attribs;
-			while(attr != NULL){
-				if(strcmp(attr->name, ATTR_max_job_sequence_id) == 0){
-					max_job_seq_id_value = strtoul(attr->value, NULL, 10);
-					attr_found = 1;
-				}
-				attr = attr->next;
-			}
-		pbs_statfree(server_attrs);
-		pbs_disconnect(connect);
-		if(attr_found)
-			return max_job_seq_id_value;
-		else
-			/* if server is not configured for max_job_sequence_id
-			 * or attribute is unset */
-			return DFLT_MAX_JOB_SEQUENCE_ID;
-	}
-}
