@@ -58,12 +58,14 @@ void handle_resv(char *resv_id, char *server, int how);
  * @param[in] how - 0: print reservation name
  *		    1: short form
  *		    2: long form (all resv info)
+ *	* @param[in] incr_width - 0: default column width
+ *		    1: "Resv ID" and "Queue" column width increased
  *
  * @return Void
  *
  */
 void
-display_single_reservation(struct batch_status *resv, int how)
+display_single_reservation(struct batch_status *resv, int how, int incr_width)
 {
 	char		*queue_name = NULL;
 #ifdef NAS /* localmod 075 */
@@ -108,14 +110,24 @@ display_single_reservation(struct batch_status *resv, int how)
 
 				attrp = attrp->next;
 			}
-
-			printf("%-10.10s %-8.8s %-8.8s %-5.5s ",
+			if(incr_width) {
+				printf("%-15.15s %-13.13s %-8.8s %-5.5s ",
 #ifdef NAS /* localmod 075 */
-				(resv_name ? resv_name : resv->name),
-				queue_name, user, resv_state);
+					(resv_name ? resv_name : resv->name),
+					queue_name, user, resv_state);
 #else
-				resv->name, queue_name, user, resv_state);
+					resv->name, queue_name, user, resv_state);
+#endif
+			}
+			else {
+				printf("%-10.10s %-8.8s %-8.8s %-5.5s ",
+#ifdef NAS /* localmod 075 */
+					(resv_name ? resv_name : resv->name),
+					queue_name, user, resv_state);
+#else
+					resv->name, queue_name, user, resv_state);
 #endif /* localmod 075 */
+			}
 			printf("%17.17s / ", convert_time(resv_start));
 			printf("%ld / %-17.17s\n", (long)resv_duration, convert_time(resv_end));
 			break;
@@ -187,6 +199,18 @@ display(struct batch_status *resv, int how)
 	struct batch_status *cur;	/* loop var - current batch_status in loop */
 	static char no_display = 0;
 
+    long long max_job_sequence_id;
+    char *cmd_name = "pbs_rstat";
+    int incr_width = 0;
+
+	if((max_job_sequence_id = get_max_job_sequence_id(cmd_name)) != 1) {
+			if(max_job_sequence_id > PBS_DFLT_MAX_JOB_SEQUENCE_ID)
+				incr_width = 1; /* column width increased*/
+		}
+	else {
+		exit(1);
+	}
+
 	if (resv == NULL)
 		return;
 
@@ -194,18 +218,29 @@ display(struct batch_status *resv, int how)
 
 	if (how == 1 && !no_display) {
 #ifdef NAS /* localmod 075 */
-		printf("%-10.10s %-8.8s %-8.8s %-5.5s %17.17s / Duration / %s\n",
+		if(incr_width)
+			printf("%-15.15s %-13.13s %-8.8s %-5.5s %17.17s / Duration / %s\n",
+		else
+			printf("%-10.10s %-8.8s %-8.8s %-5.5s %17.17s / Duration / %s\n",
 #else
-		printf("%-10.10s %-8.8s %-8.8s %-5.5s %17.17s / Duration / %-17.17s\n",
+		if(incr_width) {
+			printf("%-15.15s %-13.13s %-8.8s %-5.5s %17.17s / Duration / %-17.17s\n",
+					"Resv ID", "Queue", "User", "State", "Start", "End");
+		    printf("-------------------------------------------------------------------------------\n");
+		}
+		else {
+			printf("%-10.10s %-8.8s %-8.8s %-5.5s %17.17s / Duration / %-17.17s\n",
+					"Resv ID", "Queue", "User", "State", "Start", "End");
+			printf("---------------------------------------------------------------------\n");
+		}
 #endif /* localmod 075 */
-			"Resv ID", "Queue", "User", "State", "Start", "End");
-		printf("---------------------------------------------------------------------\n");
+
 		/* only display header once */
 		no_display = 1;
 	}
 
 	while (cur != NULL) {
-		display_single_reservation(cur, how);
+		display_single_reservation(cur, how, incr_width);
 		cur = cur->next;
 	}
 }
