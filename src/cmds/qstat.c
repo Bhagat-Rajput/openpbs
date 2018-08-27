@@ -1226,20 +1226,26 @@ display_statjob(struct batch_status *status, struct batch_status *prtheader, int
 		c = get_attr(prtheader->attribs, ATTR_comment, NULL);
 		if (c)
 			printf("%s\n", c);
-		if (p_opt)
-			if(incr_width)
-				printf("Job id                 Name             User               %% done  S Queue\n");
-			else
-				printf("Job id            Name             User               %% done  S Queue\n");
-		else
-			if(incr_width){
-				printf("Job id                 Name             User              Time Use S Queue\n");
-		    	printf("---------------------  ---------------- ----------------  -------- - -----\n");
-			}
-		    else {
-				printf("Job id            Name             User              Time Use S Queue\n");
-			    printf("----------------  ---------------- ----------------  -------- - -----\n");
-		    }
+		if (p_opt) {
+				if(incr_width) {
+					printf("Job id                 Name             User               %% done  S Queue\n");
+					printf("---------------------  ---------------- ----------------  -------- - -----\n");
+				}
+				else {
+					printf("Job id            Name             User               %% done  S Queue\n");
+					printf("----------------  ---------------- ----------------  -------- - -----\n");
+				}
+		}
+		else {
+				if(incr_width){
+					printf("Job id                 Name             User              Time Use S Queue\n");
+					printf("---------------------  ---------------- ----------------  -------- - -----\n");
+				}
+				else {
+					printf("Job id            Name             User              Time Use S Queue\n");
+					printf("----------------  ---------------- ----------------  -------- - -----\n");
+				}
+		}
 	}
 
 	if(output_format == FORMAT_JSON && first_stat) {
@@ -2183,7 +2189,12 @@ main(int argc, char **argv, char **envp) /* qstat */
 	int format = 0;
 	time_t timenow;
 
-	/* increase qstat width */
+	/* increase/decrease qstat width */
+	struct batch_status *job_ids;
+	char *ch;
+	char jobid[11] = {0};
+	int buf = 0;
+	int jobid_len;
 	int incr_width = 0;
 	long long max_job_sequence_id;
 	char *cmd_name = "qstat";
@@ -2857,10 +2868,40 @@ job_no_args:
 				} else {
 
 					if((max_job_sequence_id = get_max_job_sequence_id(cmd_name)) != 1){
-							if(max_job_sequence_id > PBS_DFLT_MAX_JOB_SEQUENCE_ID)
-								incr_width = 1;
+							if(max_job_sequence_id > PBS_DFLT_MAX_JOB_SEQUENCE_ID) {
+								incr_width = 1; /* increase qstat width */
+							}
+							else {
+								job_ids = p_status;
+								while(job_ids != NULL) {
+									if(job_ids->name != NULL) {
+										ch = job_ids->name;
+										while(*ch != '.' && *ch != '[' && *ch != '\0' && buf <= 11) {
+											jobid[buf] = *ch;
+											ch++;
+											buf++;
+										}
+										jobid_len = strlen(jobid);
+										buf = 0;
+										(void)memset(jobid, '\0', sizeof(jobid));
+										if(jobid_len >= 1 || jobid_len <= 12){
+											if(jobid_len > 7) {
+												incr_width = 1; /* increase qstat width */
+												break;
+											}
+										}
+										else {
+											fprintf(stderr, "qstat: Invalid jobid number\n");
+											exit(1);
+										}
+
+									}/* if END*/
+									job_ids = job_ids->next;
+								}/* while END*/
+							}
 						}
 					else{
+						fprintf(stderr, "qstat: couldn't able to fetch the width format\n");
 						exit(1);
 					}
 #ifdef NAS /* localmod 071 */

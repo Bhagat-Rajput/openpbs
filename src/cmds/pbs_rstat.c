@@ -59,7 +59,7 @@ void handle_resv(char *resv_id, char *server, int how);
  *		    1: short form
  *		    2: long form (all resv info)
  *	* @param[in] incr_width - 0: default column width
- *		    1: "Resv ID" and "Queue" column width increased
+ *		    1: increase "Resv ID" and "Queue" column width
  *
  * @return Void
  *
@@ -198,16 +198,51 @@ display(struct batch_status *resv, int how)
 {
 	struct batch_status *cur;	/* loop var - current batch_status in loop */
 	static char no_display = 0;
-
+    /* for dynamic qstat width*/
     long long max_job_sequence_id;
     char *cmd_name = "pbs_rstat";
     int incr_width = 0;
+	struct batch_status *job_ids;
+	char *ch;
+	char jobid[11] = {0};
+	int buf = 0;
+	int jobid_len;
 
 	if((max_job_sequence_id = get_max_job_sequence_id(cmd_name)) != 1) {
-			if(max_job_sequence_id > PBS_DFLT_MAX_JOB_SEQUENCE_ID)
-				incr_width = 1; /* column width increased*/
-		}
+			if(max_job_sequence_id > PBS_DFLT_MAX_JOB_SEQUENCE_ID) {
+				incr_width = 1; /* increase column width*/
+			}
+			else {
+				job_ids = resv;
+				while(job_ids != NULL) {
+					if(job_ids->name != NULL) {
+						ch = (job_ids->name) + 1; /* remove 'R' from resv id */
+						while(*ch != '.' && *ch != '[' && *ch != '\0' && buf <= 11) {
+							jobid[buf] = *ch;
+							ch++;
+							buf++;
+						}
+						jobid_len = strlen(jobid);
+						buf = 0;
+						(void)memset(jobid, '\0', sizeof(jobid));
+						if(jobid_len >= 1 || jobid_len <= 12){
+							if(jobid_len > 7) {
+								incr_width = 1; /* increase qstat width */
+								break;
+							}
+						}
+						else {
+							fprintf(stderr, "qstat: Invalid jobid number\n");
+							exit(1);
+						}
+
+					}/* if END*/
+					job_ids = job_ids->next;
+				}/* while END*/
+			}
+	}
 	else {
+		fprintf(stderr, "pbs_rstat:couldn't able to fetch the width format\n");
 		exit(1);
 	}
 
