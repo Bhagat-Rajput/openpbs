@@ -659,15 +659,19 @@ task_recov(job *pjob)
 			unlink(namebuf);
 			continue;
 		}
-
+		int reading_bytes;
 		/* read in task quick save sub-structure */
-		if (read(fds, (char *)&task_save, sizeof(task_save)) !=
+		if ((reading_bytes=read(fds, (char *)&task_save, sizeof(task_save))) !=
 			sizeof(task_save)) {
+			snprintf(log_buffer, LOG_BUF_SIZE-1, "inside failed case read_bytes=%d but actual_bytes=%d",reading_bytes,sizeof(task_save));
+			log_err(-1, "task_recov", log_buffer);
 			log_err(errno, __func__, "read");
 			unlink(namebuf);
 			(void)close(fds);
 			continue;
 		}
+		snprintf(log_buffer, LOG_BUF_SIZE-1, "outside in passed case read_bytes=%d but actual_bytes=%d",reading_bytes,sizeof(task_save));
+		log_err(-1, "task_recov", log_buffer);
 		if ((pt = momtask_create(pjob)) == NULL) {
 			unlink(namebuf);
 			(void)close(fds);

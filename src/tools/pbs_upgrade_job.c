@@ -87,16 +87,18 @@
  */
 
 /* From pbs_ifl.h */
-#define PBS_MAXHOSTNAME_V12	64
+/*#define PBS_MAXHOSTNAME_V12	64
 #define PBS_MAXSERVERNAME_V12	PBS_MAXHOSTNAME_V12
 #define PBS_MAXSEQNUM_V12	7
 #define PBS_MAXPORTNUM_V12	5
 #define PBS_MAXQUEUENAME_V12	15
 #define PBS_MAXSVRJOBID_V12	(PBS_MAXSEQNUM_V12 - 1 + PBS_MAXSERVERNAME_V12 + PBS_MAXPORTNUM_V12 + 2)
-#define PBS_MAXROUTEDEST_V12	(PBS_MAXQUEUENAME_V12 + PBS_MAXSERVERNAME_V12 + PBS_MAXPORTNUM_V12 + 2)
+#define PBS_MAXROUTEDEST_V12	(PBS_MAXQUEUENAME_V12 + PBS_MAXSERVERNAME_V12 + PBS_MAXPORTNUM_V12 + 2)*/
 /* From server_limits.h */
-#define PBS_JOBBASE_V12		11
+//#define PBS_JOBBASE_V12		11
 
+#define PBS_MAXSEQNUM_V12	7
+#define PBS_MAXSVRJOBID_V12	(PBS_MAXSEQNUM_V12 - 1 + PBS_MAXSERVERNAME + PBS_MAXPORTNUM + 2)
 /*
  * Replicate the jobfix and taskfix structures as they were defined
  * in version 12. Use the macros defined above for convenience.
@@ -113,9 +115,9 @@ typedef struct jobfix_v12 {
 	time_t	ji_stime;
 	time_t	ji_endtBdry;
 	char	ji_jobid[PBS_MAXSVRJOBID_V12+1];
-	char	ji_fileprefix[PBS_JOBBASE_V12+1];
-	char	ji_queue[PBS_MAXQUEUENAME_V12+1];
-	char	ji_destin[PBS_MAXROUTEDEST_V12+1];
+	char	ji_fileprefix[PBS_JOBBASE+1];
+	char	ji_queue[PBS_MAXQUEUENAME+1];
+	char	ji_destin[PBS_MAXROUTEDEST+1];
 	int	ji_un_type;
 	union {
 		struct {
