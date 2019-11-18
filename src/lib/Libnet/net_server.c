@@ -139,10 +139,14 @@ connection_find_usable_index(int sd)
 	void *p;
 	unsigned int new_conns_array_size = 0;
 
+	sprintf(log_buffer,"socket=%d and conns_array_size=%d", sd, conns_array_size);
+	log_err(-1, __func__, log_buffer);
+
 	if (sd < 0)
 		return -1;
 
 	if (sd >= conns_array_size) {
+
 		new_conns_array_size = sd + CONNS_ARRAY_INCREMENT;
 		p = realloc(svr_conn, new_conns_array_size * sizeof(conn_t *));
 		if (!p)
@@ -152,7 +156,8 @@ connection_find_usable_index(int sd)
 		memset((svr_conn + conns_array_size), 0,
 				(new_conns_array_size - conns_array_size) * sizeof(conn_t *));
 		conns_array_size = new_conns_array_size;
-
+		sprintf(log_buffer,"conn limit exhausted new limit is, conn_array_size=%d", conns_array_size);
+		log_err(-1, __func__, log_buffer);
 	}
 	return sd;
 }
@@ -657,6 +662,9 @@ wait_request(time_t waittime, void *priority_context)
 static void
 accept_conn(int sd)
 {
+	sprintf(log_buffer,"pending socket for approval, socket=%d", sd);
+	log_err(-1, __func__, log_buffer);
+
 	int newsock;
 	struct sockaddr_in from;
 	pbs_socklen_t fromsize;
@@ -688,6 +696,12 @@ accept_conn(int sd)
 		(void)close(newsock);
 		return;		/* set_nodelay failed */
 	}
+
+
+	//newsock, , ntohs(from.sin_port),
+	sprintf(log_buffer,"connection accepted, socket=%d, auth_req_port=%u and address=%lu",
+			newsock, (unsigned int)ntohs(from.sin_port), (pbs_net_t)ntohl(from.sin_addr.s_addr));
+	log_err(-1, __func__, log_buffer);
 
 	/* add the new socket to the select set and connection structure */
 
@@ -744,13 +758,23 @@ add_conn_priority(int sd, enum conn_type type, pbs_net_t addr, unsigned int port
 {
 	int 	idx;
 	conn_t *conn;
+	conn_t		*cp;
+
+	sprintf(log_buffer,"add conn info, socket=%d, auth_req_port=%u and address=%lu", sd, port, addr);
+	log_err(-1, __func__, log_buffer);
 
 	idx = connection_find_usable_index(sd);
-	if (idx == -1)
+	if (idx == -1){
+		log_err(-1, __func__, "Connection failed and returned from here");
 		return NULL;
+	}
+
+	sprintf(log_buffer,"index returned, idx=%d", idx);
+	log_err(-1, __func__, log_buffer);
 
 	conn = (conn_t *) calloc(1, sizeof(conn_t));
 	if (!conn) {
+		log_err(-1, __func__, "Failed to allocate memory and returned");
 		return NULL;
 	}
 
@@ -765,6 +789,8 @@ add_conn_priority(int sd, enum conn_type type, pbs_net_t addr, unsigned int port
 	conn->cn_authen = 0;
 	conn->cn_prio_flag = 0;
 
+	sprintf(log_buffer,"number of connections, num_connections=%d", num_connections);
+	log_err(-1, __func__, log_buffer);
 	num_connections++;
 
 	if (port < IPPORT_RESERVED)
@@ -775,6 +801,18 @@ add_conn_priority(int sd, enum conn_type type, pbs_net_t addr, unsigned int port
 	/* Add to list of connections */
 	CLEAR_LINK(conn->cn_link);
 	append_link(&svr_allconns, &conn->cn_link, conn);
+
+	sprintf(log_buffer,"append in svr_allconns list, socket=%d, auth_req_port=%u, address=%lu",
+			conn->cn_sock, conn->cn_port, conn->cn_addr);
+	log_err(-1, __func__, log_buffer);
+
+	log_err(-1, __func__, "**** PRINT all the CONNECTIONS ****");
+	for (cp = (conn_t *)GET_NEXT(svr_allconns); cp; cp = GET_NEXT(cp->cn_link)) {
+		sprintf(log_buffer,"socket=%d, auth_req_port=%u, address=%lu and REQID=%s",
+				cp->cn_sock, cp->cn_port, cp->cn_addr, cp->reqid);
+		log_err(-1, __func__, log_buffer);
+	}
+	log_err(-1, __func__, "******* END ***********");
 
 	if (tpp_em_add_fd(poll_context, sd, EM_IN | EM_HUP | EM_ERR) < 0) {
 		int err = errno;
@@ -878,6 +916,8 @@ get_conn_data(int sd)
 void
 close_conn(int sd)
 {
+	sprintf(log_buffer, "socket=%d and num_connections=%d", sd, num_connections);
+	log_err(-1, __func__, log_buffer);
 	int idx;
 
 #ifdef WIN32
@@ -888,8 +928,17 @@ close_conn(int sd)
 		return;
 
 	idx = connection_find_actual_index(sd);
-	if (idx == -1)
+	if (idx == -1) {
+		log_err(-1, __func__, "Connection failed during closing the connection");
 		return;
+	}
+
+	sprintf(log_buffer,"index returned, idx=%d", idx);
+	log_err(-1, __func__, log_buffer);
+
+	sprintf(log_buffer,"closing connection, socket=%d, auth_req_port=%u and address=%lu",
+			sd, svr_conn[idx]->cn_port, svr_conn[idx]->cn_addr);
+	log_err(-1, __func__, log_buffer);
 
 	if (svr_conn[idx]->cn_active == FromClientDIS
 		|| svr_conn[idx]->cn_active == ToServerDIS) {
@@ -915,7 +964,8 @@ close_conn(int sd)
 
 		cleanup_conn(idx);
 		num_connections--;
-
+		sprintf(log_buffer, "(if block) num_connections=%d", num_connections);
+		log_err(-1, __func__, log_buffer);
 		CLOSESOCKET(sd);
 	} else {
 		/* if there is a function to call on close, do it */
@@ -924,6 +974,8 @@ close_conn(int sd)
 
 		cleanup_conn(idx);
 		num_connections--;
+		sprintf(log_buffer, "(else block) num_connections=%d", num_connections);
+		log_err(-1, __func__, log_buffer);
 		CLOSESOCKET(sd); /* pipe so use normal close */
 	}
 }

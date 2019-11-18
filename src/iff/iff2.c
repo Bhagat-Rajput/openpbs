@@ -20,8 +20,10 @@
 #include "credential.h"
 #include "pbs_version.h"
 #include "pbs_ecl.h"
+#include <sys/time.h>
 
 #define PBS_IFF_MAX_CONN_RETRIES 6
+char log_buffer[4352]; // temp buffer for testing only
 
 /**
  * @file	iff2.c
@@ -244,6 +246,9 @@ main(int argc, char *argv[], char *envp[])
 		parentport = ntohs(parentsock_port);
 
 
+/********* add code here ****************************/
+	print_port_file("iff2.c pbs_iff:", parentport, "NULL");
+/***************************************************/
 	for (i=0; i<4; i++) {
 		/* send authentication information */
 

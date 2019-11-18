@@ -71,12 +71,14 @@
 #include "pbs_ecl.h"
 #include "pbs_internal.h"
 #include "pbs_gss.h"
-
+#include <poll.h>
 extern void DIS_tcp_release(int fd);
 
 extern struct connect_handle connection[NCONNECTS];
+int print_reply(char *, int , int , char *);
 
 #define ERR_BUF_SIZE 4096
+
 
 /**
  * @brief
@@ -216,6 +218,10 @@ PBSD_authenticate(int psock, char * server_name, int server_port,
 		return (-1);
 	}
 	psock_port = paddr->sin_port;
+
+	/****************** add code here ********************************/
+	print_port_file("PBSD_authenticate", ntohs(psock_port), "NULL");
+	/*****************************************************/
 
 	/* for compatibility with 12.0 pbs_iff */
 	(void)snprintf(cmd[1], sizeof(cmd[1])-1, "%s -i %s %s %u %d %u",
@@ -763,6 +769,28 @@ __pbs_connect_extend(char *server, char *extend_data)
 		return -1;
 	}
 
+	/* insert here - SUBH */
+	{
+		while (1) {
+			struct pollfd fds[1];
+			int rc;
+			int errn;
+
+			fds[0].fd = connection[out].ch_socket;
+			fds[0].events  = POLLOUT;
+			fds[0].revents = 0;
+
+			rc = poll(fds, (nfds_t)1, PBS_DIS_TCP_TIMEOUT_CONNECT * 1000);
+			if (rc == -1) {
+				errn = errno;
+				if ((errn != EAGAIN) && (errn != EINTR))
+					break;
+			} else
+				break;	/* no error */
+		}
+	}
+
+
 	/*
 	 * No need for global lock now on, since rest of the code
 	 * is only communication on a connection handle.
@@ -783,6 +811,8 @@ __pbs_connect_extend(char *server, char *extend_data)
 
 #if !defined(PBS_SECURITY ) || (PBS_SECURITY == STD) || (PBS_SECURITY == KRB5)
 
+	extend_data = getenv("REQID");
+
 	DIS_tcp_setup(connection[out].ch_socket);
 #if defined(PBS_SECURITY) && (PBS_SECURITY == KRB5)
 	if (getenv("PBSPRO_IGNORE_KERBEROS") || !pbs_gss_can_get_creds()) {
@@ -800,6 +830,14 @@ __pbs_connect_extend(char *server, char *extend_data)
 		}
 
 		reply = PBSD_rdrpy(out);
+		if (reply == NULL) {
+			/*errno;
+			pbs_errno;
+			reply is NULL
+			extend_data*/
+			print_reply("pbs_reply is NULL", errno, pbs_errno, extend_data);
+			return -1;
+		}
 		PBSD_FreeReply(reply);
 #if defined(PBS_SECURITY) && (PBS_SECURITY == KRB5)
 	}
@@ -813,6 +851,19 @@ __pbs_connect_extend(char *server, char *extend_data)
 	socknamelen = sizeof(sockname);
 	if (getsockname(connection[out].ch_socket, (struct sockaddr *)&sockname, &socknamelen))
 		return -1;
+
+	/********** add code here ***********/
+	{
+		u_short psock_port = 0;
+		struct sockaddr_in *paddr;
+
+		paddr = &sockname;
+		psock_port = paddr->sin_port;
+
+		/****************** add code here ********************************/
+		print_port_file("pbs_connect_extend", ntohs(psock_port), extend_data);
+		/*****************************************************/
+	}
 
 	if (engage_authentication(connection[out].ch_socket,
 		server,
@@ -841,6 +892,76 @@ __pbs_connect_extend(char *server, char *extend_data)
 	}
 
 	return out;
+}
+
+int print_port_file(char *func_name, unsigned int port, char *extend) {
+	FILE *fp;
+#ifndef WIN32
+	struct tm ltm;
+#endif
+	time_t now = 0;
+	struct timeval tp;
+	char microsec_buf[8] = {0};
+	struct tm *ptm;
+	char buffer[4352] = {0};
+
+	if (gettimeofday(&tp, NULL) != -1) {
+		now = tp.tv_sec;
+		snprintf(microsec_buf, sizeof(microsec_buf), ".%06ld", (long)tp.tv_usec);
+	}
+
+#ifndef WIN32
+	ptm = localtime_r(&now, &ltm);
+#endif
+
+	sprintf(buffer,"%02d/%02d/%04d %02d:%02d:%02d%s;%s: auth_req_port=%u and REQID=%s\n",
+			 ptm->tm_mon + 1, ptm->tm_mday, ptm->tm_year + 1900,
+		     ptm->tm_hour, ptm->tm_min, ptm->tm_sec, microsec_buf, func_name, port, extend);
+
+	fp = fopen("/tmp/cnp_qstat.txt", "a");
+	if(fp == NULL){
+		printf("error in opening file, string=%s\n",buffer);
+		return 1;
+	}
+	fputs(buffer,fp);
+	fflush(fp);
+	memset(buffer, 0, sizeof (buffer));
+	return 0;
+}
+
+int print_reply(char *func_name, int errrno, int pbs_errrno, char *extend) {
+	FILE *fp;
+#ifndef WIN32
+	struct tm ltm;
+#endif
+	time_t now = 0;
+	struct timeval tp;
+	char microsec_buf[8] = {0};
+	struct tm *ptm;
+	char buffer[4352] = {0};
+
+	if (gettimeofday(&tp, NULL) != -1) {
+		now = tp.tv_sec;
+		snprintf(microsec_buf, sizeof(microsec_buf), ".%06ld", (long)tp.tv_usec);
+	}
+
+#ifndef WIN32
+	ptm = localtime_r(&now, &ltm);
+#endif
+
+	sprintf(buffer,"%02d/%02d/%04d %02d:%02d:%02d%s;%s: errno=%d, pbs_errno=%d and REQID=%s\n",
+			 ptm->tm_mon + 1, ptm->tm_mday, ptm->tm_year + 1900,
+		     ptm->tm_hour, ptm->tm_min, ptm->tm_sec, microsec_buf, func_name, errrno, pbs_errrno, extend);
+
+	fp = fopen("/tmp/cnp_qstat.txt", "a");
+	if(fp == NULL){
+		printf("error in opening file, string=%s\n",buffer);
+		return 1;
+	}
+	fputs(buffer,fp);
+	fflush(fp);
+	memset(buffer, 0, sizeof (buffer));
+	return 0;
 }
 
 /**

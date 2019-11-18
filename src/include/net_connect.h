@@ -206,6 +206,7 @@ int set_nodelay(int fd);
 struct connection {
 	int		cn_sock;	/* socket descriptor */
 	pbs_net_t	cn_addr;	/* internet address of client */
+	char 	reqid[30];
 	int		cn_sockflgs;	/* file status flags - fcntl(F_SETFL) */
 	int		cn_handle;	/* handle for API, see svr_connect() */
 	unsigned int	cn_port;	/* internet port number of client */

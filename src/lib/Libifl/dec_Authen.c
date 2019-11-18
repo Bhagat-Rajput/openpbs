@@ -61,6 +61,8 @@
 #include "batch_request.h"
 #include "dis.h"
 
+extern void log_err(int err, const char *func, const char *text);
+char log_buffer[4352];
 /**
  * @brief
  *      Decode PBS batch request to authenticate user
@@ -74,8 +76,13 @@ int
 decode_DIS_AuthenResvPort(int sock, struct batch_request *preq)
 {
 	int rc;
-
-	preq->rq_ind.rq_authen_resvport.rq_port = disrui(sock, &rc);
+	unsigned long temp;
+	temp = disrui(sock, &rc);
+	preq->rq_ind.rq_authen_resvport.rq_port = temp;
+	//preq->rq_ind.rq_authen_resvport.rq_port = disrui(sock, &rc);
+	sprintf(log_buffer, "decode disrui to batch struct,socket=%d, req_auth_port=%u and temp_long=%lu",
+			sock, preq->rq_ind.rq_authen_resvport.rq_port, temp);
+	log_err(-1, __func__, log_buffer);
 	return rc;
 }
 

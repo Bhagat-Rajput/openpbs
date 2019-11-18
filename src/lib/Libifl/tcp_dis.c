@@ -299,8 +299,11 @@ tcp_read(int fd)
 			break;
 	} while ((i == -1) && (errno == EINTR));
 
-	if ((i == 0) || (i < 0))
+	if ((i == 0) || (i < 0)) {
+		if (i == 0)
+			errno = ETIMEDOUT;
 		return i;
+	}
 
 	while ((i = CS_read(fd, &tp->tdis_thebuf[tp->tdis_eod],
 		tp->tdis_bufsize - tp->tdis_eod)) == CS_IO_FAIL) {

@@ -60,9 +60,11 @@
 /* External Global Data Items Referenced */
 
 extern time_t time_now;
-
+extern void log_err(int err, const char *func, const char *text);
 extern pbs_list_head svr_allconns;
 extern int max_connection;
+
+char log_buffer[4352]; // temp buffer for testing only
 
 /* Global Data Home in this file */
 
@@ -77,6 +79,7 @@ extern int max_connection;
 void
 req_connect(struct batch_request *preq)
 {
+
 	conn_t *conn = get_conn(preq->rq_conn);
 
 	if (!conn) {
@@ -85,12 +88,16 @@ req_connect(struct batch_request *preq)
 	}
 
 	if (preq->rq_extend != NULL) {
+		strcpy(conn->reqid, preq->rq_extend);
 		if (strcmp(preq->rq_extend, QSUB_DAEMON) == 0)
 			conn->cn_authen |= PBS_NET_CONN_FROM_QSUB_DAEMON;
 		else if (strcmp(preq->rq_extend, SC_DAEMON) == 0)
 			conn->cn_authen |= PBS_NET_CONN_FROM_PRIVIL;
 	}
 
+	sprintf(log_buffer,"connection request, socket=%d, auth_req_port=%u and address=%lu, REQID=%s",
+			preq->rq_conn, conn->cn_port, conn->cn_addr, conn->reqid);
+	log_err(-1, __func__, log_buffer);
 
 	if ((conn->cn_authen &
 		(PBS_NET_CONN_AUTHENTICATED|PBS_NET_CONN_FROM_PRIVIL))==0) {
@@ -114,6 +121,11 @@ req_authenResvPort(struct batch_request *preq)
 {
 	pbs_net_t	req_addr;
 	conn_t		*cp;
+
+	sprintf(log_buffer,"retrieve info from batch struct, socket=%d, auth_req_port=%u",
+			preq->rq_conn, preq->rq_ind.rq_authen_resvport.rq_port);
+	log_err(-1, __func__, log_buffer);
+
 	uint		authrequest_port = preq->rq_ind.rq_authen_resvport.rq_port;
 
 	cp = get_conn(preq->rq_conn);
@@ -128,8 +140,15 @@ req_authenResvPort(struct batch_request *preq)
 	 * find the socket whose client side is bound to the port named
 	 * in the request
 	 */
+	sprintf(log_buffer,"start searching for socket=%d, auth_req_port=%u, address=%lu",
+			preq->rq_conn, authrequest_port, cp->cn_addr);
+	log_err(-1, __func__, log_buffer);
 
+	log_err(-1, __func__, "**** searching PORT ****");
 	for (cp = (conn_t *)GET_NEXT(svr_allconns); cp; cp = GET_NEXT(cp->cn_link)) {
+		sprintf(log_buffer," Inside loop, socket=%d, auth_req_port=%u, address=%lu and REQID=%s",
+				cp->cn_sock, cp->cn_port, cp->cn_addr, cp->reqid);
+		log_err(-1, __func__, log_buffer);
 		if (authrequest_port == cp->cn_port && req_addr == cp->cn_addr) {
 			if ((cp->cn_authen & (PBS_NET_CONN_AUTHENTICATED | PBS_NET_CONN_FROM_PRIVIL)) == 0) {
 				(void) strcpy(cp->cn_username, preq->rq_user);
@@ -139,8 +158,13 @@ req_authenResvPort(struct batch_request *preq)
 				cp->cn_authen |= PBS_NET_CONN_AUTHENTICATED;
 			}
 			reply_ack(preq);
+			log_err(-1, __func__, "**** searching END with success ****");
 			return;
 		}
 	}
+	log_err(-1, __func__, "**** searching END with FAILURE ****");
+	sprintf(log_buffer,"failed to find socket=%d, auth_req_port=%u, address=%lu",
+			preq->rq_conn, authrequest_port, req_addr);
+	log_err(-1, __func__, log_buffer);
 	req_reject(PBSE_BADCRED, 0, preq);
 }

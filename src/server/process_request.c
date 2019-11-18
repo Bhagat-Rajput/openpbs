@@ -1068,14 +1068,26 @@ void
 close_client(int sfds)
 {
 	struct batch_request *preq;
+	sprintf(log_buffer, "closing conn and also deactivating all outstand requests, socket=%d ", sfds);
+	log_err(-1, __func__, log_buffer);
 
 	close_conn(sfds);	/* close the connection */
 	preq = (struct batch_request *)GET_NEXT(svr_requests);
 	while (preq) {			/* list of outstanding requests */
-		if (preq->rq_conn == sfds)
+		if (preq->rq_conn == sfds) {
+			sprintf(log_buffer,"deactivate conn, socket=%d, auth_req_port=%u",
+					preq->rq_conn , preq->rq_ind.rq_authen_resvport.rq_port);
+			log_err(-1, __func__, log_buffer);
+			log_err(-1, __func__, "connection deactivated");
 			preq->rq_conn = -1;
-		if (preq->rq_orgconn == sfds)
+		}
+		if (preq->rq_orgconn == sfds) {
+			sprintf(log_buffer,"deactivate conn, socket=%d, auth_req_port=%u",
+					preq->rq_conn , preq->rq_ind.rq_authen_resvport.rq_port);
+			log_err(-1, __func__, log_buffer);
+			log_err(-1, __func__, "connection deactivated");
 			preq->rq_orgconn = -1;
+		}
 		preq = (struct batch_request *)GET_NEXT(preq->rq_link);
 	}
 }
