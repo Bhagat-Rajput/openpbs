@@ -165,6 +165,7 @@ extern char *msg_cannot_set_route_que;
 extern int check_req_aoe_available(struct pbsnode *, char *);
 int resize_prov_table(int);
 vnpool_mom_t    *vnode_pool_mom_list = NULL;
+static int check_resource_set_on_jobs_or_resvs(struct batch_request *, resource_def *, int);
 
 /* private data */
 
@@ -677,8 +678,6 @@ unset_indirect(resource *presc, attribute_def *pdef, int limit, char *name, void
 	return;
 }
 
-
-
 /*
  * @brief
  * 		Set attributes for manager function.
@@ -720,6 +719,11 @@ mgr_set_attr2(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist,
 
 	if (plist == NULL)
 		return (PBSE_NONE);
+
+	rc = verify_resc_new_value(pattr, pdef, plist, limit, bad);
+	if (rc) {
+		return(rc);
+	}
 
 	/*
 	 * We have multiple attribute lists in play here.  pre_copy is used
@@ -1028,6 +1032,12 @@ mgr_unset_attr(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist
 				return (PBSE_PERM);
 			}
 			presc = find_resc_entry(pattr+index, prsdef);
+			if (presc != NULL) {
+				if ((check_resource_set_on_jobs_or_resvs(NULL, prsdef, 1)) == 1) {
+					*bad = ord;
+					return (PBSE_RESCBUSY);
+				}
+			}
 			if (presc &&
 				(presc->rs_value.at_flags & ATR_VFLAG_TARGET)) {
 				if (rflag == INDIRECT_RES_UNLINK) {
@@ -3871,7 +3881,8 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 		pattr = &pj->ji_wattr[JOB_ATR_resource];
 		presc = get_resource(pattr, prdef);
 		if ((presc != NULL) && (mod == 1)) {
-			reply_text(preq, PBSE_RESCBUSY, "Resource busy on job");
+			if (preq != NULL)
+				reply_text(preq, PBSE_RESCBUSY, "Resource busy on job");
 			return 1;
 		}
 		pattr = &pj->ji_wattr[JOB_ATR_SchedSelect];
@@ -3881,7 +3892,8 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 				rlen = strlen(prdef->rs_name);
 				if (((mod == 1) && (*(rmatch+rlen) == '=')) &&
 				    ((rmatch == pattr->at_val.at_str) || *(rmatch-1) == ':')) {
-					reply_text(preq, PBSE_RESCBUSY, "Resource busy on job");
+					if (preq != NULL)
+						reply_text(preq, PBSE_RESCBUSY, "Resource busy on job");
 					return 1;
 				}
 			}
@@ -3894,7 +3906,8 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 		pattr = &pr->ri_wattr[RESV_ATR_resource];
 		presc = get_resource(pattr, prdef);
 		if ((presc != NULL) && (mod == 1)) {
-			reply_text(preq, PBSE_RESCBUSY, "Resource busy on reservation");
+			if (preq != NULL)
+				reply_text(preq, PBSE_RESCBUSY, "Resource busy on reservation");
 			return 1;
 		}
 		pattr = &pr->ri_wattr[RESV_ATR_SchedSelect];
@@ -3903,7 +3916,8 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 			if (rmatch != NULL) {
 				rlen = strlen(prdef->rs_name);
 				if (((*(rmatch+rlen) == '=') && (*(rmatch-1) == ':')) && (mod == 1)) {
-					reply_text(preq, PBSE_RESCBUSY, "Resource busy on reservation");
+					if (preq != NULL)
+						reply_text(preq, PBSE_RESCBUSY, "Resource busy on reservation");
 					return 1;
 				}
 			}
@@ -5266,4 +5280,81 @@ node_current_aoe_action(attribute *new, void *pobj, int act)
 
 
 	return PBSE_NONE;
+}
+
+/**
+ * @brief
+ * 	verify_resc_new_value - Verify the resources newly updated values.
+ *
+ *	If job/resv is using the particular resource then PBS won't allow to set any value
+ *	lesser than the previous one.
+ *
+ * @param[in]	pattr	- Address of the parent objects attribute array
+ * @param[in]	pdef	- Address of attribute definition array
+ * @param[in]	plist	- List of attributes to set
+ * @param[in]	limit	- Last attribute in the list
+ * @param[out] badattr - Pointer to the attribute index in case of a failed operation
+ *
+ * @return      int
+ * @retval      0       Success
+ * @retval     >0       Fail
+ *
+ */
+int
+verify_resc_new_value(attribute *pattr, attribute_def *pdef, svrattrl *plist, int limit, int *bad_attr) {
+
+	svrattrl *copy_plist;
+	int index;
+	resource_def *rsc_def;
+	resource *presc;
+	int attr_num = 0;
+
+	copy_plist = plist;
+
+	while (copy_plist) {
+        attr_num++;
+		index = find_attr(pdef, copy_plist->al_name, limit);
+		if (index < 0) {
+			*bad_attr = attr_num;
+			return (PBSE_NOATTR);
+		}
+
+		if (((pdef + index)->at_type == ATR_TYPE_RESC) && (copy_plist->al_resc != NULL)) {
+
+			rsc_def = find_resc_def(svr_resc_def, copy_plist->al_resc, svr_resc_size);
+			if (rsc_def == NULL) {
+				*bad_attr = attr_num;
+				return (PBSE_UNKRESC);
+			}
+
+			presc = find_resc_entry(pattr + index, rsc_def);
+			if (presc != NULL) {
+
+				if (presc->rs_value.at_type == ATR_TYPE_FLOAT) {
+					if (atof(copy_plist->al_atopl.value) < presc->rs_value.at_val.at_float) {
+						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, 1)) == 1) {
+							*bad_attr = attr_num;
+							return PBSE_RESCBUSY;
+						}
+					}
+				} else if (presc->rs_value.at_type == ATR_TYPE_LONG) {
+					if (atol(copy_plist->al_atopl.value) < presc->rs_value.at_val.at_long) {
+						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, 1)) == 1) {
+							*bad_attr = attr_num;
+							return PBSE_RESCBUSY;
+						}
+					}
+				} else if (presc->rs_value.at_type == ATR_TYPE_SIZE) {
+					if (atol(copy_plist->al_atopl.value) < presc->rs_value.at_val.at_size.atsv_num) {
+						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, 1)) == 1) {
+							*bad_attr = attr_num;
+							return PBSE_RESCBUSY;
+						}
+					}
+				}
+			}
+		}
+		copy_plist = (svrattrl *)GET_NEXT(copy_plist->al_link);
+	}
+	return (0);
 }
