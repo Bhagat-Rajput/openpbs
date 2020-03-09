@@ -165,6 +165,7 @@ extern char *msg_cannot_set_route_que;
 extern int check_req_aoe_available(struct pbsnode *, char *);
 int resize_prov_table(int);
 vnpool_mom_t    *vnode_pool_mom_list = NULL;
+static int check_resource_set_on_jobs_or_resvs(struct batch_request *, resource_def *, int);
 
 /* private data */
 
@@ -1028,6 +1029,12 @@ mgr_unset_attr(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist
 				return (PBSE_PERM);
 			}
 			presc = find_resc_entry(pattr+index, prsdef);
+			if (presc != NULL) {
+				if ((check_resource_set_on_jobs_or_resvs(NULL, prsdef, 1)) == 1) {
+					*bad = ord;
+					return (PBSE_RESCBUSY);
+				}
+			}
 			if (presc &&
 				(presc->rs_value.at_flags & ATR_VFLAG_TARGET)) {
 				if (rflag == INDIRECT_RES_UNLINK) {
@@ -3871,7 +3878,8 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 		pattr = &pj->ji_wattr[JOB_ATR_resource];
 		presc = get_resource(pattr, prdef);
 		if ((presc != NULL) && (mod == 1)) {
-			reply_text(preq, PBSE_RESCBUSY, "Resource busy on job");
+			if (preq != NULL)
+				reply_text(preq, PBSE_RESCBUSY, "Resource busy on job");
 			return 1;
 		}
 		pattr = &pj->ji_wattr[JOB_ATR_SchedSelect];
@@ -3881,7 +3889,8 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 				rlen = strlen(prdef->rs_name);
 				if (((mod == 1) && (*(rmatch+rlen) == '=')) &&
 				    ((rmatch == pattr->at_val.at_str) || *(rmatch-1) == ':')) {
-					reply_text(preq, PBSE_RESCBUSY, "Resource busy on job");
+					if (preq != NULL)
+						reply_text(preq, PBSE_RESCBUSY, "Resource busy on job");
 					return 1;
 				}
 			}
@@ -3894,7 +3903,8 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 		pattr = &pr->ri_wattr[RESV_ATR_resource];
 		presc = get_resource(pattr, prdef);
 		if ((presc != NULL) && (mod == 1)) {
-			reply_text(preq, PBSE_RESCBUSY, "Resource busy on reservation");
+			if (preq != NULL)
+				reply_text(preq, PBSE_RESCBUSY, "Resource busy on reservation");
 			return 1;
 		}
 		pattr = &pr->ri_wattr[RESV_ATR_SchedSelect];
@@ -3903,7 +3913,8 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 			if (rmatch != NULL) {
 				rlen = strlen(prdef->rs_name);
 				if (((*(rmatch+rlen) == '=') && (*(rmatch-1) == ':')) && (mod == 1)) {
-					reply_text(preq, PBSE_RESCBUSY, "Resource busy on reservation");
+					if (preq != NULL)
+						reply_text(preq, PBSE_RESCBUSY, "Resource busy on reservation");
 					return 1;
 				}
 			}
