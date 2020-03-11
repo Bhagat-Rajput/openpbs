@@ -165,7 +165,6 @@ extern char *msg_cannot_set_route_que;
 extern int check_req_aoe_available(struct pbsnode *, char *);
 int resize_prov_table(int);
 vnpool_mom_t    *vnode_pool_mom_list = NULL;
-static int check_resource_set_on_jobs_or_resvs(struct batch_request *, resource_def *, int);
 
 /* private data */
 
@@ -3862,7 +3861,7 @@ is_entity_resource_set(attribute *pattr, char *resc_name)
  * @retval	1	- If resource is busy on jobs or reservations
  * @retval	0	- Otherwise
  */
-static int
+int
 check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *prdef, int mod)
 {
 	job *pj;

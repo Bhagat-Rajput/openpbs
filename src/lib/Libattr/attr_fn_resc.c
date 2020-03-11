@@ -603,6 +603,53 @@ add_resource_entry(attribute *pattr, resource_def *prdef)
 
 /**
  * @brief
+ * 	is_eligible_to_set - Check the eligibility of the resource updated/new value at this point of time.
+ *
+ *	If job/resv is using the particular resource then PBS won't allow to set any value
+ *	lesser than the previous one.
+ *
+ * @param[in]   old  - pointer to old attribute to be set (A)
+ * @param[in]   new  - pointer to new attribute (B)
+ *
+ * @return      int
+ * @retval      0       if eligible
+ * @retval     >0       if ineligible/error
+ *
+ */
+int
+is_eligible_to_set(struct attribute *old, struct attribute *new) {
+	resource *new_resc;
+	resource *old_resc;
+
+	assert(old && new);
+	new_resc = (resource *)GET_NEXT(new->at_val.at_list);
+	while (new_resc != NULL) {
+		old_resc = find_resc_entry(old, new_resc->rs_defin);
+		if (old_resc != NULL) {
+			if (old_resc->rs_value.at_type == ATR_TYPE_FLOAT) {
+				if (new_resc->rs_value.at_val.at_float < old_resc->rs_value.at_val.at_float) {
+					if ((check_resource_set_on_jobs_or_resvs(NULL, old_resc->rs_defin, 1)) == 1)
+						return PBSE_RESCBUSY;
+				}
+			} else if (old_resc->rs_value.at_type == ATR_TYPE_LONG) {
+				if (new_resc->rs_value.at_val.at_long < old_resc->rs_value.at_val.at_long) {
+					if ((check_resource_set_on_jobs_or_resvs(NULL, old_resc->rs_defin, 1)) == 1)
+						return PBSE_RESCBUSY;
+				}
+			} else if (old_resc->rs_value.at_type == ATR_TYPE_SIZE) {
+				if (new_resc->rs_value.at_val.at_size.atsv_num < old_resc->rs_value.at_val.at_size.atsv_num) {
+					if ((check_resource_set_on_jobs_or_resvs(NULL, old_resc->rs_defin, 1)) == 1)
+						return PBSE_RESCBUSY;
+				}
+			}
+		}
+		new_resc = (resource *)GET_NEXT(new_resc->rs_link);
+	}
+	return (0);
+}
+
+/**
+ * @brief
  *      This function is called by action routine of resource_list attribute
  *	of job and reservation. For each resource in the list, if it has its
  *	own action routine,it calls it.

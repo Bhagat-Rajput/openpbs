@@ -180,7 +180,17 @@ attr_atomic_set(struct svrattrl *plist, attribute *old, attribute *new, attribut
 			plist->al_op = SET;
 
 		if (temp.at_flags & ATR_VFLAG_SET) {
-			rc=(pdef + index)->at_set(new + index, &temp, plist->al_op);
+			/** bhagat code **/
+			if(temp.at_type == ATR_TYPE_RESC) {
+				/* Is resource eligible to set a new value at this time */
+				rc = is_eligible_to_set(new + index, &temp);
+				if (rc) {
+					(pdef + index)->at_free(&temp);
+					break;
+				}
+			}
+			/****************/
+			rc = (pdef + index)->at_set(new + index, &temp, plist->al_op);
 			if (rc) {
 				(pdef + index)->at_free(&temp);
 				break;

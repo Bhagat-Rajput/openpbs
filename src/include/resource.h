@@ -42,6 +42,7 @@ extern "C" {
 #endif
 #include "attribute.h"
 #include "list_link.h"
+#include "batch_request.h"
 
 
 /*
@@ -133,6 +134,8 @@ extern int  parse_resc_flags(char *val, int *flag_ir_p, int *resc_flag_p);
 extern int verify_resc_name(char *name);
 extern int verify_resc_type_and_flags(int resc_type, int *pflag_ir, int *presc_flag, char *rescname, char *buf, int buflen, int autocorrect);
 extern void update_resc_sum(void);
+extern int is_eligible_to_set(struct attribute *, struct attribute *);
+extern int check_resource_set_on_jobs_or_resvs(struct batch_request *, resource_def *, int);
 
 /* Defines for entity limit tracking */
 #define PBS_ENTLIM_NOLIMIT  0	/* No entity limit has been set for this resc */
