@@ -9376,7 +9376,7 @@ _pbs_python_do_vnode_set(void)
 
 		rc = mgr_set_attr(pnode->nd_attr, node_attr_def, ND_ATR_LAST,
 			plist, ATR_PERM_ALLOW_INDIRECT,
-			&bad, (void *)pnode, ATR_ACTION_ALTER);
+			&bad, (void *)pnode, MGR_OBJ_NODE, ATR_ACTION_ALTER);
 
 		if (rc != 0) {
 			char	*pbse_err;

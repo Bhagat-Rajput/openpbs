@@ -234,7 +234,7 @@ mgr_log_attr(char *msg, struct svrattrl *plist, int logclass,
 
 int
 mgr_set_attr(attribute *pattr, attribute_def *pdef, int limit,
-	svrattrl *plist, int privil, int *bad, void *parent, int mode)
+	svrattrl *plist, int privil, int *bad, void *parent, int parent_type, int mode)
 {
 	return (0);
 }

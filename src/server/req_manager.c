@@ -690,6 +690,7 @@ unset_indirect(resource *presc, attribute_def *pdef, int limit, char *name, void
  * @param[out]	bad 	- A bad attributes index is returned in this param
  *		       				This actually returns the bad index + 1.
  * @param[in]   parent	- Pointer to the parent object
+ * @param[in]   parent	- Type of the parent object
  * @param[in]   mode 	- operation mode.
  * @param[in]   allow_unkresc	- set to TRUE to allow unknown resource values;
  * 									otherwise, FALSE.
@@ -704,7 +705,7 @@ unset_indirect(resource *presc, attribute_def *pdef, int limit, char *name, void
  */
 
 static int
-mgr_set_attr2(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist, int privil, int *bad, void *parent, int mode, int allow_unkresc)
+mgr_set_attr2(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist, int privil, int *bad, void *parent, int parent_type, int mode, int allow_unkresc)
 {
 	int		 index;
 	attribute	*new;
@@ -720,7 +721,7 @@ mgr_set_attr2(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist,
 	if (plist == NULL)
 		return (PBSE_NONE);
 
-	rc = verify_resc_new_value(pattr, pdef, plist, limit, bad);
+	rc = verify_resc_new_value(pattr, pdef, plist, limit, bad, parent);
 	if (rc) {
 		return(rc);
 	}
@@ -939,6 +940,7 @@ mgr_set_attr2(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist,
  * @param[out]	bad 	- A bad attributes index is returned in this param
  *		       				This actually returns the bad index + 1.
  * @param[in]   parent	- Pointer to the parent object
+ * @param[in]   parent_type	- Type of the parent object
  * @param[in]   mode 	- operation mode.
  *
  * @return	Error code
@@ -946,9 +948,9 @@ mgr_set_attr2(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist,
  * @retval	! PBSE_NONE - Failure
  **/
 int
-mgr_set_attr(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist, int privil, int *bad, void *parent, int mode)
+mgr_set_attr(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist, int privil, int *bad, void *parent, int parent_type, int mode)
 {
-	return (mgr_set_attr2(pattr, pdef, limit, plist, privil, bad, parent, mode, FALSE));
+	return (mgr_set_attr2(pattr, pdef, limit, plist, privil, bad, parent, parent_type, mode, FALSE));
 }
 
 /**
@@ -1239,7 +1241,7 @@ struct batch_request *preq;
 
 	plist = (svrattrl *)GET_NEXT(preq->rq_ind.rq_manager.rq_attr);
 	rc = mgr_set_attr(pque->qu_attr, que_attr_def, QA_ATR_LAST, plist,
-		preq->rq_perm, &bad, (void *)pque, ATR_ACTION_NEW);
+		preq->rq_perm, &bad, (void *)pque, MGR_OBJ_QUEUE, ATR_ACTION_NEW);
 	if (rc != 0) {
 		reply_badattr(rc, bad, plist, preq);
 		que_free(pque);
@@ -1468,7 +1470,7 @@ mgr_server_set(struct batch_request *preq)
 	plist = (svrattrl *)GET_NEXT(preq->rq_ind.rq_manager.rq_attr);
 
 	rc = mgr_set_attr(server.sv_attr, svr_attr_def, SRV_ATR_LAST, plist,
-		preq->rq_perm, &bad_attr, (void *)&server,
+		preq->rq_perm, &bad_attr, (void *)&server, MGR_OBJ_SERVER,
 		ATR_ACTION_ALTER);
 	if (rc != 0)
 		reply_badattr(rc, bad_attr, plist, preq);
@@ -1585,7 +1587,7 @@ mgr_server_unset(struct batch_request *preq)
 				/* when unset, set scheduler_iteration to 600 seconds */
 				sprintf(tm_list->al_value, "%d", PBS_SCHEDULE_CYCLE);
 				rc = mgr_set_attr(dflt_scheduler->sch_attr, sched_attr_def, SCHED_ATR_LAST, tm_list,
-					MGR_ONLY_SET, &bad_attr, (void *)dflt_scheduler, ATR_ACTION_ALTER);
+					MGR_ONLY_SET, &bad_attr, (void *)dflt_scheduler, MGR_OBJ_SCHED, ATR_ACTION_ALTER);
 				if (rc != 0) {
 					free_svrattrl(tm_list);
 					reply_badattr(rc, bad_attr, plist, preq);
@@ -1658,7 +1660,7 @@ mgr_server_unset(struct batch_request *preq)
 					tm_list->al_link.ll_next->ll_struct = NULL;
 					sprintf(tm_list->al_value, "%d", 1);
 					rc = mgr_set_attr(server.sv_attr, svr_attr_def, SRV_ATR_LAST, tm_list,
-					NO_USER_SET, &bad_attr, (void *)&server, ATR_ACTION_ALTER);
+					NO_USER_SET, &bad_attr, (void *)&server, MGR_OBJ_SERVER, ATR_ACTION_ALTER);
 					if (rc != 0) {
 						free_svrattrl(tm_list);
 						reply_badattr(rc, bad_attr, plist, preq);
@@ -1706,7 +1708,7 @@ mgr_sched_set(struct batch_request *preq)
 	plist = (svrattrl *)GET_NEXT(preq->rq_ind.rq_manager.rq_attr);
 	rc = mgr_set_attr(psched->sch_attr, sched_attr_def,
 		SCHED_ATR_LAST, plist, preq->rq_perm,
-		&bad_attr, (void *)psched, ATR_ACTION_ALTER);
+		&bad_attr, (void *)psched, MGR_OBJ_SCHED, ATR_ACTION_ALTER);
 	if (rc != 0)
 		reply_badattr(rc, bad_attr, plist, preq);
 	else {
@@ -1840,7 +1842,7 @@ mgr_queue_set(struct batch_request *preq)
 	while (pque) {
 
 		rc = mgr_set_attr(pque->qu_attr, que_attr_def, QA_ATR_LAST,
-			plist, preq->rq_perm, &bad, (void *)pque,
+			plist, preq->rq_perm, &bad, (void *)pque, MGR_OBJ_QUEUE,
 			ATR_ACTION_ALTER);
 		if (rc != 0) {
 			reply_badattr(rc, bad, plist, preq);
@@ -2285,7 +2287,7 @@ mgr_node_set(struct batch_request *preq)
 			rc = mgr_set_attr(pnode->nd_attr, node_attr_def, ND_ATR_LAST,
 				plist,
 				preq->rq_perm | ATR_PERM_ALLOW_INDIRECT,
-				&bad, (void *)pnode, ATR_ACTION_ALTER);
+				&bad, (void *)pnode, MGR_OBJ_NODE, ATR_ACTION_ALTER);
 			if (rc != 0) {
 
 				if (numnodes > 1) {
@@ -3098,7 +3100,7 @@ create_pbs_node2(char *objname, svrattrl *plist, int perms, int *bad, struct pbs
 
 	rc = mgr_set_attr2(pnode->nd_attr, node_attr_def, ND_ATR_LAST,
 		plist, perms | ATR_PERM_ALLOW_INDIRECT, bad,
-		(void *)pnode, ATR_ACTION_NEW, allow_unkresc);
+		(void *)pnode, MGR_OBJ_NODE, ATR_ACTION_NEW, allow_unkresc);
 
 	if (rc != 0) {
 		/*
@@ -3647,7 +3649,7 @@ mgr_sched_create(struct batch_request *preq)
 
 	plist = (svrattrl *) GET_NEXT(preq->rq_ind.rq_manager.rq_attr);
 	rc = mgr_set_attr(psched->sch_attr, sched_attr_def, SCHED_ATR_LAST, plist,
-			preq->rq_perm, &bad, (void *) psched, ATR_ACTION_NEW);
+			preq->rq_perm, &bad, (void *) psched, MGR_OBJ_SCHED, ATR_ACTION_NEW);
 	if (rc != 0) {
 		reply_badattr(rc, bad, plist, preq);
 		sched_free(psched);
@@ -5294,6 +5296,7 @@ node_current_aoe_action(attribute *new, void *pobj, int act)
  * @param[in]	plist	- List of attributes to set
  * @param[in]	limit	- Last attribute in the list
  * @param[out] badattr - Pointer to the attribute index in case of a failed operation
+ * @param[in]   parent	- Pointer to the parent object
  *
  * @return      int
  * @retval      0       Success
@@ -5301,7 +5304,7 @@ node_current_aoe_action(attribute *new, void *pobj, int act)
  *
  */
 int
-verify_resc_new_value(attribute *pattr, attribute_def *pdef, svrattrl *plist, int limit, int *bad_attr) {
+verify_resc_new_value(attribute *pattr, attribute_def *pdef, svrattrl *plist, int limit, int *bad_attr, void *parent_obj) {
 
 	svrattrl *copy_plist;
 	int index;

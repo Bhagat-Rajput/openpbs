@@ -513,7 +513,7 @@ extern int	svr_max_conc_prov_action(attribute *, void *, int);
 /* Manager functions */
 extern void	mgr_log_attr(char *, struct svrattrl *, int, char *, char *);
 extern int	mgr_set_attr(attribute *, attribute_def *, int, svrattrl *,
-	int, int *, void *, int);
+	int, int *, void *, int, int);
 /* Extern functions (at_action) called  from job_attr_def*/
 
 extern int job_set_wait(attribute *, void *, int);
