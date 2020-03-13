@@ -165,7 +165,7 @@ extern char *msg_cannot_set_route_que;
 extern int check_req_aoe_available(struct pbsnode *, char *);
 int resize_prov_table(int);
 vnpool_mom_t    *vnode_pool_mom_list = NULL;
-static int check_resource_set_on_jobs_or_resvs(struct batch_request *, resource_def *, int);
+static int check_resource_set_on_jobs_or_resvs(struct batch_request *, resource_def *, void *, int, int);
 
 /* private data */
 
@@ -1035,7 +1035,7 @@ mgr_unset_attr(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist
 			}
 			presc = find_resc_entry(pattr+index, prsdef);
 			if (presc != NULL) {
-				if ((check_resource_set_on_jobs_or_resvs(NULL, prsdef, 1)) == 1) {
+				if ((check_resource_set_on_jobs_or_resvs(NULL, prsdef, pobj, ptype, 1)) == 1) {
 					*bad = ord;
 					return (PBSE_RESCBUSY);
 				}
@@ -3861,6 +3861,8 @@ is_entity_resource_set(attribute *pattr, char *resc_name)
  *
  * @param[in]	preq	- The client's batch request
  * @param[in]	prdef	- The resource definition to check on
+ * @param[in]   parent	- Pointer to the parent object
+ * @param[in]   parent_type	- Type of the parent object
  * @param[in]	mod	- Set to 1 if the resource type or flag are being modified
  *
  * @return	BOOLEAN
@@ -3868,7 +3870,7 @@ is_entity_resource_set(attribute *pattr, char *resc_name)
  * @retval	0	- Otherwise
  */
 static int
-check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *prdef, int mod)
+check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *prdef, void *parent, int parent_type, int mod)
 {
 	job *pj;
 	resc_resv *pr;
@@ -4098,7 +4100,7 @@ mgr_resource_delete(struct batch_request *preq)
 		return;
 	}
 
-	rc = check_resource_set_on_jobs_or_resvs(preq, prdef, 1);
+	rc = check_resource_set_on_jobs_or_resvs(preq, prdef, NULL, 0, 1);
 	if (rc == 1)
 		return;
 
@@ -4357,7 +4359,7 @@ mgr_resource_set(struct batch_request *preq)
 		plist = (svrattrl *) GET_NEXT(plist->al_link);
 	}
 
-	rc = check_resource_set_on_jobs_or_resvs(preq, prdef, (mod_type || mod_flag));
+	rc = check_resource_set_on_jobs_or_resvs(preq, prdef, NULL, 0, (mod_type || mod_flag));
 	if (rc == 1) {
 		/* check function replies to client's preq */
 		return;
@@ -4567,7 +4569,7 @@ mgr_resource_unset(struct batch_request *preq)
 	}
 
 
-	rc = check_resource_set_on_jobs_or_resvs(preq, prdef, 1);
+	rc = check_resource_set_on_jobs_or_resvs(preq, prdef, NULL, 0, 1);
 	if (rc == 1)
 		return;
 
@@ -5297,6 +5299,7 @@ node_current_aoe_action(attribute *new, void *pobj, int act)
  * @param[in]	limit	- Last attribute in the list
  * @param[out] badattr - Pointer to the attribute index in case of a failed operation
  * @param[in]   parent	- Pointer to the parent object
+ * @param[in]   parent_type	- Type of the parent object
  *
  * @return      int
  * @retval      0       Success
@@ -5304,7 +5307,7 @@ node_current_aoe_action(attribute *new, void *pobj, int act)
  *
  */
 int
-verify_resc_new_value(attribute *pattr, attribute_def *pdef, svrattrl *plist, int limit, int *bad_attr, void *parent_obj) {
+verify_resc_new_value(attribute *pattr, attribute_def *pdef, svrattrl *plist, int limit, int *bad_attr, void *parent, int parent_type) {
 
 	svrattrl *copy_plist;
 	int index;
@@ -5335,21 +5338,21 @@ verify_resc_new_value(attribute *pattr, attribute_def *pdef, svrattrl *plist, in
 
 				if (presc->rs_value.at_type == ATR_TYPE_FLOAT) {
 					if (atof(copy_plist->al_atopl.value) < presc->rs_value.at_val.at_float) {
-						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, 1)) == 1) {
+						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, parent, parent_type, 1)) == 1) {
 							*bad_attr = attr_num;
 							return PBSE_RESCBUSY;
 						}
 					}
 				} else if (presc->rs_value.at_type == ATR_TYPE_LONG) {
 					if (atol(copy_plist->al_atopl.value) < presc->rs_value.at_val.at_long) {
-						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, 1)) == 1) {
+						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, parent, parent_type, 1)) == 1) {
 							*bad_attr = attr_num;
 							return PBSE_RESCBUSY;
 						}
 					}
 				} else if (presc->rs_value.at_type == ATR_TYPE_SIZE) {
 					if (atol(copy_plist->al_atopl.value) < presc->rs_value.at_val.at_size.atsv_num) {
-						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, 1)) == 1) {
+						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, parent, parent_type, 1)) == 1) {
 							*bad_attr = attr_num;
 							return PBSE_RESCBUSY;
 						}
