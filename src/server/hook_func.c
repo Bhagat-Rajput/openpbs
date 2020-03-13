@@ -7464,7 +7464,7 @@ get_server_hook_results(char *input_file, int *accept_flag, int *reject_flag, ch
 					save_characteristic(pnode);
 
 					rc = mgr_set_attr(pnode->nd_attr, node_attr_def, ND_ATR_LAST,
-								plist, ATR_DFLAG_WRACC, &bad, (void *)pnode, MGR_OBJ_NODE, ATR_ACTION_ALTER);
+								plist, ATR_DFLAG_WRACC, &bad, (void *)pnode, PARENT_TYPE_NODE, ATR_ACTION_ALTER);
 					if (rc != 0) {
 						pbse_err = pbse_to_txt(rc);
 						snprintf(raw_err, sizeof(raw_err), "%d", rc);

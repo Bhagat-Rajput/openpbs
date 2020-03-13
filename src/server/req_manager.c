@@ -1241,7 +1241,7 @@ struct batch_request *preq;
 
 	plist = (svrattrl *)GET_NEXT(preq->rq_ind.rq_manager.rq_attr);
 	rc = mgr_set_attr(pque->qu_attr, que_attr_def, QA_ATR_LAST, plist,
-		preq->rq_perm, &bad, (void *)pque, MGR_OBJ_QUEUE, ATR_ACTION_NEW);
+		preq->rq_perm, &bad, (void *)pque, PARENT_TYPE_QUE_ALL, ATR_ACTION_NEW);
 	if (rc != 0) {
 		reply_badattr(rc, bad, plist, preq);
 		que_free(pque);
@@ -1470,7 +1470,7 @@ mgr_server_set(struct batch_request *preq)
 	plist = (svrattrl *)GET_NEXT(preq->rq_ind.rq_manager.rq_attr);
 
 	rc = mgr_set_attr(server.sv_attr, svr_attr_def, SRV_ATR_LAST, plist,
-		preq->rq_perm, &bad_attr, (void *)&server, MGR_OBJ_SERVER,
+		preq->rq_perm, &bad_attr, (void *)&server, PARENT_TYPE_SERVER,
 		ATR_ACTION_ALTER);
 	if (rc != 0)
 		reply_badattr(rc, bad_attr, plist, preq);
@@ -1587,7 +1587,7 @@ mgr_server_unset(struct batch_request *preq)
 				/* when unset, set scheduler_iteration to 600 seconds */
 				sprintf(tm_list->al_value, "%d", PBS_SCHEDULE_CYCLE);
 				rc = mgr_set_attr(dflt_scheduler->sch_attr, sched_attr_def, SCHED_ATR_LAST, tm_list,
-					MGR_ONLY_SET, &bad_attr, (void *)dflt_scheduler, MGR_OBJ_SCHED, ATR_ACTION_ALTER);
+					MGR_ONLY_SET, &bad_attr, (void *)dflt_scheduler, PARENT_TYPE_SCHED, ATR_ACTION_ALTER);
 				if (rc != 0) {
 					free_svrattrl(tm_list);
 					reply_badattr(rc, bad_attr, plist, preq);
@@ -1708,7 +1708,7 @@ mgr_sched_set(struct batch_request *preq)
 	plist = (svrattrl *)GET_NEXT(preq->rq_ind.rq_manager.rq_attr);
 	rc = mgr_set_attr(psched->sch_attr, sched_attr_def,
 		SCHED_ATR_LAST, plist, preq->rq_perm,
-		&bad_attr, (void *)psched, MGR_OBJ_SCHED, ATR_ACTION_ALTER);
+		&bad_attr, (void *)psched, PARENT_TYPE_SCHED, ATR_ACTION_ALTER);
 	if (rc != 0)
 		reply_badattr(rc, bad_attr, plist, preq);
 	else {
@@ -1842,7 +1842,7 @@ mgr_queue_set(struct batch_request *preq)
 	while (pque) {
 
 		rc = mgr_set_attr(pque->qu_attr, que_attr_def, QA_ATR_LAST,
-			plist, preq->rq_perm, &bad, (void *)pque, MGR_OBJ_QUEUE,
+			plist, preq->rq_perm, &bad, (void *)pque, PARENT_TYPE_QUE_ALL,
 			ATR_ACTION_ALTER);
 		if (rc != 0) {
 			reply_badattr(rc, bad, plist, preq);
@@ -2287,7 +2287,7 @@ mgr_node_set(struct batch_request *preq)
 			rc = mgr_set_attr(pnode->nd_attr, node_attr_def, ND_ATR_LAST,
 				plist,
 				preq->rq_perm | ATR_PERM_ALLOW_INDIRECT,
-				&bad, (void *)pnode, MGR_OBJ_NODE, ATR_ACTION_ALTER);
+				&bad, (void *)pnode, PARENT_TYPE_NODE, ATR_ACTION_ALTER);
 			if (rc != 0) {
 
 				if (numnodes > 1) {
@@ -3649,7 +3649,7 @@ mgr_sched_create(struct batch_request *preq)
 
 	plist = (svrattrl *) GET_NEXT(preq->rq_ind.rq_manager.rq_attr);
 	rc = mgr_set_attr(psched->sch_attr, sched_attr_def, SCHED_ATR_LAST, plist,
-			preq->rq_perm, &bad, (void *) psched, MGR_OBJ_SCHED, ATR_ACTION_NEW);
+			preq->rq_perm, &bad, (void *) psched, PARENT_TYPE_SCHED, ATR_ACTION_NEW);
 	if (rc != 0) {
 		reply_badattr(rc, bad, plist, preq);
 		sched_free(psched);
