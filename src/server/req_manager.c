@@ -690,7 +690,7 @@ unset_indirect(resource *presc, attribute_def *pdef, int limit, char *name, void
  * @param[out]	bad 	- A bad attributes index is returned in this param
  *		       				This actually returns the bad index + 1.
  * @param[in]   parent	- Pointer to the parent object
- * @param[in]   parent	- Type of the parent object
+ * @param[in]   parent_type	- Type of the parent object
  * @param[in]   mode 	- operation mode.
  * @param[in]   allow_unkresc	- set to TRUE to allow unknown resource values;
  * 									otherwise, FALSE.
@@ -721,7 +721,7 @@ mgr_set_attr2(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist,
 	if (plist == NULL)
 		return (PBSE_NONE);
 
-	rc = verify_resc_new_value(pattr, pdef, plist, limit, bad, parent);
+	rc = verify_resc_new_value(pattr, pdef, plist, limit, bad, parent, parent_type);
 	if (rc) {
 		return(rc);
 	}
@@ -3878,10 +3878,31 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 	int rlen;
 	attribute *pattr;
 	resource *presc;
+	struct pbs_queue *pque;
+	struct pbsnode *pnode;
+	struct pbs_sched *psched;
+	int que_flag = 0, node_flag = 0;
+
+	if ((parent != NULL) && (parent_type > 0)) {
+		if (parent_type == PARENT_TYPE_QUE_ALL) {
+			pque = (struct pbs_queue *)parent;
+			que_flag = 1;
+		} else if (parent_type == PARENT_TYPE_NODE) {
+			pnode = (struct pbsnode *)parent;
+			node_flag = 1;
+		}
+	}
+
+	if (que_flag) {
+		/* check job in a queue only */
+		pj = (job *)GET_NEXT(pque->qu_jobs);
+	} else {
+		/* check job in whole server job list */
+		pj = (job *)GET_NEXT(svr_alljobs);
+	}
 
 	/* Reject if resource is on a job and the type or flag are being modified */
-
-	for (pj = (job *)GET_NEXT(svr_alljobs); pj != NULL; pj = (job *)GET_NEXT(pj->ji_alljobs)) {
+	while (pj != NULL) {
 		pattr = &pj->ji_wattr[JOB_ATR_resource];
 		presc = get_resource(pattr, prdef);
 		if ((presc != NULL) && (mod == 1)) {
@@ -3895,13 +3916,17 @@ check_resource_set_on_jobs_or_resvs(struct batch_request *preq, resource_def *pr
 			if (rmatch != NULL) {
 				rlen = strlen(prdef->rs_name);
 				if (((mod == 1) && (*(rmatch+rlen) == '=')) &&
-				    ((rmatch == pattr->at_val.at_str) || *(rmatch-1) == ':')) {
+					((rmatch == pattr->at_val.at_str) || *(rmatch-1) == ':')) {
 					if (preq != NULL)
 						reply_text(preq, PBSE_RESCBUSY, "Resource busy on job");
 					return 1;
 				}
 			}
 		}
+	if (que_flag)
+		pj = (job *)GET_NEXT(pj->ji_jobque);
+	else
+		pj = (job *)GET_NEXT(pj->ji_alljobs);
 	}
 
 	/* Reject if resource is on a job and the type or flag are being modified */
@@ -5313,7 +5338,9 @@ verify_resc_new_value(attribute *pattr, attribute_def *pdef, svrattrl *plist, in
 	int index;
 	resource_def *rsc_def;
 	resource *presc;
+	resource *assign_resc;
 	int attr_num = 0;
+	int idx, resc_busy = 0;
 
 	copy_plist = plist;
 
@@ -5335,24 +5362,28 @@ verify_resc_new_value(attribute *pattr, attribute_def *pdef, svrattrl *plist, in
 
 			presc = find_resc_entry(pattr + index, rsc_def);
 			if (presc != NULL) {
+				idx = find_attr(pdef, ATTR_rescassn, limit);
+				if (idx >= 0) {
+					assign_resc = find_resc_entry((pattr + idx), rsc_def);
+					if (assign_resc != NULL) {
 
-				if (presc->rs_value.at_type == ATR_TYPE_FLOAT) {
-					if (atof(copy_plist->al_atopl.value) < presc->rs_value.at_val.at_float) {
-						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, parent, parent_type, 1)) == 1) {
-							*bad_attr = attr_num;
-							return PBSE_RESCBUSY;
+						/* if resource is of "float" type */
+						if (presc->rs_value.at_type == ATR_TYPE_FLOAT) {
+							if (atof(copy_plist->al_atopl.value) < assign_resc->rs_value.at_val.at_float)
+								resc_busy = 1;
+
+						/* if resource is of "long" type */
+						} else if (presc->rs_value.at_type == ATR_TYPE_LONG) {
+							if (atol(copy_plist->al_atopl.value) < assign_resc->rs_value.at_val.at_long)
+								resc_busy = 1;
+
+						/* if resource is of "size" type */
+						} else if (presc->rs_value.at_type == ATR_TYPE_SIZE) {
+							if (atol(copy_plist->al_atopl.value) < assign_resc->rs_value.at_val.at_size.atsv_num)
+								resc_busy = 1;
 						}
-					}
-				} else if (presc->rs_value.at_type == ATR_TYPE_LONG) {
-					if (atol(copy_plist->al_atopl.value) < presc->rs_value.at_val.at_long) {
-						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, parent, parent_type, 1)) == 1) {
-							*bad_attr = attr_num;
-							return PBSE_RESCBUSY;
-						}
-					}
-				} else if (presc->rs_value.at_type == ATR_TYPE_SIZE) {
-					if (atol(copy_plist->al_atopl.value) < presc->rs_value.at_val.at_size.atsv_num) {
-						if ((check_resource_set_on_jobs_or_resvs(NULL, rsc_def, parent, parent_type, 1)) == 1) {
+						if (resc_busy) {
+							/* resource is a kind of busy at this time, can't set it to lower value */
 							*bad_attr = attr_num;
 							return PBSE_RESCBUSY;
 						}
