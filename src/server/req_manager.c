@@ -721,6 +721,11 @@ mgr_set_attr2(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist,
 	if (plist == NULL)
 		return (PBSE_NONE);
 
+	rc = verify_resc_before_set_unset(pattr, pdef, plist, limit, bad, SET);
+	if (rc) {
+		return(rc);
+	}
+
 	/*
 	 * We have multiple attribute lists in play here.  pre_copy is used
 	 * to copy the attributes into pattr prior to calling the action functions.
@@ -997,7 +1002,15 @@ mgr_unset_attr(attribute *pattr, attribute_def *pdef, int limit, svrattrl *plist
 
 	/* first check the attribute exists and we have privilege to set */
 	ord = 0;
+
+	if (plist == NULL)
+		return (PBSE_NONE);
 	pl = plist;
+
+	if (verify_resc_before_set_unset(pattr, pdef, pl, limit, bad, UNSET)) {
+		return (PBSE_RESCBUSY);
+	}
+
 	while (pl) {
 		ord++;
 		index = find_attr(pdef, pl->al_name, limit);
@@ -5282,4 +5295,126 @@ node_current_aoe_action(attribute *new, void *pobj, int act)
 
 
 	return PBSE_NONE;
+}
+
+/**
+ * @brief
+ * 	verify_resc_val_before_set - Verify the resources newly updated values.
+ *
+ *	If job/resv is using the particular resource then PBS won't allow to set any value
+ *	lesser than the corresponding resources_assigned value.
+ *
+ * @param[in]	pattr	- Address of the parent objects attribute array
+ * @param[in]	pdef	- Address of attribute definition array
+ * @param[in]	plist	- List of attributes to set
+ * @param[in]	limit	- Last attribute in the list
+ * @param[in/out] badattr - Pointer to the attribute index in case of a failed operation
+ * @param[in]	mod	- SET or UNSET the resource
+ *
+ * @return      int
+ * @retval      0       Success
+ * @retval     >0       Fail
+ *
+ */
+int
+verify_resc_before_set_unset(attribute *pattr, attribute_def *pdef, svrattrl *plist, int limit, int *bad_attr, enum batch_op op) {
+
+	svrattrl *copy_plist;
+	resource_def *rsc_def;
+	resource *presc;
+	resource *assign_resc;
+	int index;
+	int idx;
+	int attr_num = 0;
+	int resc_busy = 0;
+
+	copy_plist = plist;
+
+	while (copy_plist) {
+        attr_num++;
+		index = find_attr(pdef, copy_plist->al_name, limit);
+		if (index < 0) {
+			*bad_attr = attr_num;
+			return (PBSE_NOATTR);
+		}
+
+		if (((pdef + index)->at_type == ATR_TYPE_RESC) && (copy_plist->al_resc != NULL)) {
+
+			rsc_def = find_resc_def(svr_resc_def, copy_plist->al_resc, svr_resc_size);
+			if (rsc_def == NULL) {
+				*bad_attr = attr_num;
+				return (PBSE_UNKRESC);
+			}
+
+			presc = find_resc_entry(pattr + index, rsc_def);
+			if (presc != NULL) {
+				idx = find_attr(pdef, ATTR_rescassn, limit);
+				if (idx >= 0) {
+					assign_resc = find_resc_entry((pattr + idx), rsc_def);
+					if (assign_resc != NULL) {
+
+						/* if resource is of "float" type */
+						if (assign_resc->rs_value.at_type == ATR_TYPE_FLOAT) {
+							if ((op == UNSET && (assign_resc->rs_value.at_val.at_float != 0)) ||
+									(op == SET && (
+											(atof(copy_plist->al_atopl.value) < assign_resc->rs_value.at_val.at_float) && (assign_resc->rs_value.at_val.at_float != 0)
+											)))
+								resc_busy = 1;
+
+						/* if resource is of "long" type */
+						} else if (assign_resc->rs_value.at_type == ATR_TYPE_LONG) {
+							if ((op == UNSET && (assign_resc->rs_value.at_val.at_long != 0)) ||
+									(op == SET && (
+											(atol(copy_plist->al_atopl.value) < assign_resc->rs_value.at_val.at_long) && (assign_resc->rs_value.at_val.at_long != 0)
+											)))
+								resc_busy = 1;
+
+						/* if resource is of "size" type */
+						} else if (assign_resc->rs_value.at_type == ATR_TYPE_SIZE) {
+							if ((op == UNSET && (assign_resc->rs_value.at_val.at_size.atsv_num != 0)) ||
+									(op == SET && (atol(copy_plist->al_atopl.value) < assign_resc->rs_value.at_val.at_size.atsv_num)))
+								resc_busy = 1;
+						}
+					}
+				}
+			/* if there is no attribute named as resources_available.<resc_name> but resources_assigned.<resc_name> could be present */
+			} else if (op == SET) {
+				/* if admin tries to set the resource again, but PBS has some jobs already in the system
+				 * which are using that same resource.
+				 * search it's corresponding resources_assigned value and based on that value will decide whether PBS
+				 * should allow to set or not.
+				 */
+				idx = find_attr(pdef, ATTR_rescassn, limit);
+				if (idx >= 0) {
+					assign_resc = find_resc_entry((pattr + idx), rsc_def);
+					if (assign_resc != NULL) {
+						/* if resource is of "float" type */
+						if (assign_resc->rs_value.at_type == ATR_TYPE_FLOAT) {
+							if (atof(copy_plist->al_atopl.value) < assign_resc->rs_value.at_val.at_float) {
+								resc_busy = 1;
+							}
+						/* if resource is of "long" type */
+						} else if (assign_resc->rs_value.at_type == ATR_TYPE_LONG) {
+							if (atol(copy_plist->al_atopl.value) < assign_resc->rs_value.at_val.at_long)
+								resc_busy = 1;
+						/* if resource is of "size" type */
+						} else if (assign_resc->rs_value.at_type == ATR_TYPE_SIZE) {
+							if (atol(copy_plist->al_atopl.value) < assign_resc->rs_value.at_val.at_size.atsv_num)
+								resc_busy = 1;
+						}
+					}
+				}
+			}
+		}
+		if (resc_busy) {
+			/* resource is a kind of busy at this moment or can't set it to lower value */
+			*bad_attr = attr_num;
+			if (op == SET)
+				return PBSE_CANNOT_SET_RESC_VAL;
+			else
+				return PBSE_RESCBUSY;
+		}
+		copy_plist = (svrattrl *)GET_NEXT(copy_plist->al_link);
+	}
+	return (0);
 }
