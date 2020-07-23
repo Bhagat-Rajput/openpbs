@@ -296,9 +296,8 @@ main(int argc, char **argv, char **envp) /* qalter */
 					errflg++;
 					break;
 				}
-#ifdef WIN32
-				back2forward_slash2(optarg);
-#endif
+				fix_path(optarg, 1);
+				//back2forward_slash2(optarg);
 				i = parse_equal_string(optarg, &keyword, &valuewd);
 				while (i == 1) {
 					set_attr_error_exit(&attrib, keyword, valuewd);

@@ -2303,10 +2303,10 @@ usecp(char *value)
 	if (((pcphosts+cphosts_num)->cph_to = strdup(skipwhite(pnxt))) == NULL)
 		return HANDLER_FAIL;
 
-#ifdef	WIN32
-	back2forward_slash((pcphosts+cphosts_num)->cph_from);
-	back2forward_slash((pcphosts+cphosts_num)->cph_to);
-#endif
+	fix_path((pcphosts+cphosts_num)->cph_from, 1);
+	fix_path((pcphosts+cphosts_num)->cph_to, 1);
+	//back2forward_slash((pcphosts+cphosts_num)->cph_from);
+	//back2forward_slash((pcphosts+cphosts_num)->cph_to);
 
 	cphosts_num++;
 
@@ -8285,7 +8285,8 @@ main(int argc, char *argv[])
 				malloc(strlen(pbs_conf.pbs_home_path) + 17))) {
 				sprintf(pbs_conf.pbs_environment, "%s/pbs_environment",
 					pbs_conf.pbs_home_path);
-				back2forward_slash(pbs_conf.pbs_environment);
+				fix_path(pbs_conf.pbs_environment, 1);
+				//back2forward_slash(pbs_conf.pbs_environment);
 			}
 		}
 #else

@@ -415,9 +415,8 @@ set_resv_env(char **envp)
 
 	c = getenv("MAIL");
 	if (c != NULL) {
-#ifdef WIN32
-		back2forward_slash(c);
-#endif
+		fix_path(c, 1);
+		//back2forward_slash(c);
 		strcat(resv_env, ",PBS_O_MAIL=");
 		strcat(resv_env, c);
 	}

@@ -1944,7 +1944,8 @@ sys_copy(int dir, int rmtflg, char *owner, char *src, struct rqfpair *pair, int 
 				} else if (strchr(ag2, ':')) {
 					/* replace "\ " wth " " so "\" not forwarded */
 					replace(ag2, "\\ ", " ", ag2_path);
-					back2forward_slash(ag2_path);
+					fix_path(ag2_path, 1);
+					//back2forward_slash(ag2_path);
 					sprintf(ag2_path, "\"%s\"",
 						replace_space(ag2_path, "\\ "));
 				} else {
@@ -1961,7 +1962,8 @@ sys_copy(int dir, int rmtflg, char *owner, char *src, struct rqfpair *pair, int 
 				} else if (strchr(ag3, ':')) {
 					/* replace "\ " wth " " so "\" not forwarded */
 					replace(ag3, "\\ ", " ", ag3_path);
-					back2forward_slash(ag3_path);
+					fix_path(ag3_path, 1);
+					//back2forward_slash(ag3_path);
 					sprintf(ag3_path, "\"%s\"",
 						replace_space(ag3_path, "\\ "));
 				} else {

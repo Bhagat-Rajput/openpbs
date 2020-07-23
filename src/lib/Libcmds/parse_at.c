@@ -159,9 +159,8 @@ parse_at_list(char *list, int use_count, int abs_path)
 	if ((list == NULL) || (*list == '\0'))
 		return 1;
 
-#ifdef WIN32
-	back2forward_slash(list);        /* "\" translate to "/" for path */
-#endif
+	fix_path(list, 1);
+	//back2forward_slash(list);        /* "\" translate to "/" for path */
 
 	if ((list_dup = strdup(list)) == NULL) {
 		fprintf(stderr, "Out of memory.\n");

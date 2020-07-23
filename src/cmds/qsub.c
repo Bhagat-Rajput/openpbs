@@ -304,8 +304,8 @@ extern void do_daemon_stuff(char *, char *, char *); /* it's for other side only
 extern void enable_gui(void);
 extern void set_sig_handlers(void);
 extern void interactive(void);
-extern void back2forward_slash(char *);
-extern void back2forward_slash2(char *);
+//extern void back2forward_slash(char *);
+//extern void back2forward_slash2(char *);
 extern void get_uncpath(char *);
 extern int  dorecv(void *, char *, int);
 extern int  dosend(void *, char *, int);
@@ -1319,7 +1319,8 @@ extern char GETOPT_ARGS[];
 					 * environment because '\' is used to protect commas
 					 * inside quoted values.
 					 */
-					(void)back2forward_slash(optarg);
+					fix_path(optarg, 1);
+					//(void)back2forward_slash(optarg);
 					v_value = expand_varlist(optarg);
 					if (v_value == NULL)
 						exit(1);
@@ -1962,7 +1963,8 @@ job_env_basic(void)
 
 	/* Send the required variables with the job. */
 	c = strdup_esc_commas(getenv("HOME"));
-	(void)back2forward_slash(c);
+	fix_path(c, 1);
+	//(void)back2forward_slash(c);
 	strcat(job_env, "PBS_O_HOME=");
 	if (c != NULL) {
 		strcat(job_env, c);
@@ -1984,21 +1986,24 @@ job_env_basic(void)
 		free(c);
 	}
 	c = strdup_esc_commas(getenv("PATH"));
-	(void)back2forward_slash(c);
+	fix_path(c, 1);
+	//(void)back2forward_slash(c);
 	if (c != NULL) {
 		strcat(job_env, ",PBS_O_PATH=");
 		strcat(job_env, c);
 		free(c);
 	}
 	c = strdup_esc_commas(getenv("MAIL"));
-	(void)back2forward_slash(c);
+	fix_path(c, 1);
+	//(void)back2forward_slash(c);
 	if (c != NULL) {
 		strcat(job_env, ",PBS_O_MAIL=");
 		strcat(job_env, c);
 		free(c);
 	}
 	c = strdup_esc_commas(getenv("SHELL"));
-	(void)back2forward_slash(c);
+	fix_path(c, 1);
+	//(void)back2forward_slash(c);
 	if (c != NULL) {
 		strcat(job_env, ",PBS_O_SHELL=");
 		strcat(job_env, c);
@@ -2062,7 +2067,8 @@ job_env_basic(void)
 		get_uncpath(c);
 		c_escaped = strdup_esc_commas(c);
 		if (c_escaped != NULL) {
-			(void)back2forward_slash(c_escaped);
+			fix_path(c_escaped, 1);
+			//(void)back2forward_slash(c_escaped);
 			strncpy(p, c_escaped, len - (p - job_env));
 			free(c_escaped);
 			c_escaped = NULL;
@@ -2157,7 +2163,8 @@ env_array_to_varlist(char **envp)
 			strcat(job_env, ",");
 			strcat(job_env, *evp);
 			strcat(job_env, "=");
-			(void)back2forward_slash(s + 1);
+			fix_path(s + 1, 1);
+			//(void)back2forward_slash(s + 1);
 			(void)copy_env_value(job_env, s + 1, 1);
 		}
 		*s = '=';
@@ -2256,7 +2263,8 @@ set_job_env(char *basic_vlist, char *current_vlist)
 			strcat(job_env, ",");
 			strcat(job_env, s);
 			strcat(job_env, "=");
-			(void)back2forward_slash(env);
+			fix_path(env, 1);
+			//(void)back2forward_slash(env);
 			if (copy_env_value(job_env, env, 1) == NULL) {
 				free(job_env);
 				return FALSE;
@@ -2281,7 +2289,8 @@ set_job_env(char *basic_vlist, char *current_vlist)
 		(void)strcat(job_env, ",");
 		(void)strcat(job_env, s);
 		(void)strcat(job_env, "=");
-		(void)back2forward_slash(c);
+		fix_path(c, 1);
+		//(void)back2forward_slash(c);
 		if ((c = copy_env_value(job_env, c, 0)) == NULL) {
 			free(job_env);
 			return FALSE;
@@ -3295,7 +3304,8 @@ main(int argc, char **argv, char **envp) /* qsub */
 	free(argv_cpy);
 	/* Process special arguments */
 	command_flag = process_special_args(argc, argv, script);
-	(void)back2forward_slash(script);
+	fix_path(script, 1);
+	//(void)back2forward_slash(script);
 
 	if (command_flag == 0)
 		/* Read the job script from a file or stdin */
